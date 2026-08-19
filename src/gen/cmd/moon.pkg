@@ -1,0 +1,13 @@
+import {
+  "Allianaab2m/cairn/gen",
+  "moonbitlang/x/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/x/sys",
+}
+
+pkgtype(kind: "executable")
+
+options(
+  "bin-name": "cairn-gen",
+  "bin-target": "wasm",
+)

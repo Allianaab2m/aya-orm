@@ -1,0 +1,62 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Allianaab2m/cairn/gen"
+
+import {
+  "moonbitlang/core/debug",
+  "moonbitlang/core/list",
+  "moonbitlang/parser/syntax",
+}
+
+// Values
+pub fn collect_entities(@list.List[@syntax.Impl]) -> Array[EntitySpec] raise
+
+pub fn emit_entity(EntitySpec) -> String
+
+pub fn emit_file(Array[EntitySpec]) -> String
+
+pub fn generate(String, name? : String) -> String raise
+
+pub fn parse_attr(String) -> Attr? raise AttrError
+
+pub fn render_type(@syntax.Type) -> String
+
+// Errors
+pub(all) suberror AttrError {
+  Malformed(raw~ : String, reason~ : String)
+} derive(@debug.Debug)
+
+pub(all) suberror EntityError {
+  NotARecord(type_name~ : String)
+  MissingTable(type_name~ : String)
+  DuplicatePrimaryKey(type_name~ : String)
+} derive(@debug.Debug)
+
+pub(all) suberror GenError {
+  ParseFailed(name~ : String, diagnostics~ : Int)
+} derive(@debug.Debug)
+
+// Types and methods
+pub struct Attr {
+  name : String
+  args : Map[String, String]
+} derive(Eq, @debug.Debug)
+pub fn Attr::arg(Self, String) -> String?
+
+pub struct EntitySpec {
+  type_name : String
+  table : String
+  tbl : String
+  cols_name : String
+  fields : Array[FieldSpec]
+} derive(Eq, @debug.Debug)
+
+pub struct FieldSpec {
+  name : String
+  ty : String
+  column : String
+  is_primary : Bool
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits
