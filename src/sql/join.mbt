@@ -24,15 +24,39 @@ pub struct Join {
 ///|
 /// Join another table, pairing the two tables' column handles.
 ///
-/// `Cols` becomes a tuple, so a later `filter` or `map` reaches the left
-/// table through `.0` and the right one through `.1`. Chaining a third join
-/// nests further: `((C1, C2), C3)`.
+/// `Cols` becomes a pair. Chaining nests to the left — `((C1, C2), C3)` — which
+/// `Query::map_cols` collapses into names once the joins are done.
 pub fn[C1, C2, R2, A] Query::join(
   self : Query[C1, A],
   t : Table[C2, R2],
   on : (C1, C2) -> Expr[Bool],
 ) -> Query[(C1, C2), A] {
-  join_with(self, t, on, Inner)
+  attach(self, t, on(self.cols, t.cols).raw(), (self.cols, t.cols), Inner)
+}
+
+///|
+/// Assemble the joined query. Only the join list and the column handles change.
+fn[C1, C2, R2, A, D] attach(
+  q : Query[C1, A],
+  t : Table[C2, R2],
+  on : RawExpr,
+  cols : D,
+  kind : JoinKind,
+) -> Query[D, A] {
+  let joins = Array::from_iter(q.joins.iter())
+  joins.push({ kind, table_name: t.table_name, tbl: t.tbl, on })
+  {
+    source: q.source,
+    source_tbl: q.source_tbl,
+    joins,
+    cols,
+    projection: Array::from_iter(q.projection.iter()),
+    wheres: Array::from_iter(q.wheres.iter()),
+    group: Array::from_iter(q.group.iter()),
+    order: Array::from_iter(q.order.iter()),
+    limit_n: q.limit_n,
+    decode: q.decode,
+  }
 }
 
 ///|
@@ -66,60 +90,22 @@ pub fn[C, R] Nullable::row(self : Nullable[C, R]) -> Selection[R?] {
 }
 
 ///|
-/// Join another table, keeping left rows that have no match.
-///
-/// The right side arrives as `Nullable[C2, R2]` rather than `C2`, so its
-/// columns cannot be read as if the join had matched.
+/// Outer-join another table, pairing the column handles.
+/// `on` sees the joined table's raw columns, because a join condition is
+/// evaluated before the outer-join padding and nullability does not apply to
+/// it. What the query carries afterwards is the `Nullable` wrapper.
 pub fn[C1, C2, R2, A] Query::left_join(
   self : Query[C1, A],
   t : Table[C2, R2],
   on : (C1, C2) -> Expr[Bool],
 ) -> Query[(C1, Nullable[C2, R2]), A] {
-  let joins = Array::from_iter(self.joins.iter())
-  joins.push({
-    kind: Left,
-    table_name: t.table_name,
-    tbl: t.tbl,
-    on: on(self.cols, t.cols).raw(),
-  })
-  {
-    source: self.source,
-    source_tbl: self.source_tbl,
-    joins,
-    cols: (self.cols, Nullable(t.cols, t.all)),
-    projection: Array::from_iter(self.projection.iter()),
-    wheres: Array::from_iter(self.wheres.iter()),
-    order: Array::from_iter(self.order.iter()),
-    limit_n: self.limit_n,
-    decode: self.decode,
-  }
-}
-
-///|
-fn[C1, C2, R2, A] join_with(
-  q : Query[C1, A],
-  t : Table[C2, R2],
-  on : (C1, C2) -> Expr[Bool],
-  kind : JoinKind,
-) -> Query[(C1, C2), A] {
-  let joins = Array::from_iter(q.joins.iter())
-  joins.push({
-    kind,
-    table_name: t.table_name,
-    tbl: t.tbl,
-    on: on(q.cols, t.cols).raw(),
-  })
-  {
-    source: q.source,
-    source_tbl: q.source_tbl,
-    joins,
-    cols: (q.cols, t.cols),
-    projection: Array::from_iter(q.projection.iter()),
-    wheres: Array::from_iter(q.wheres.iter()),
-    order: Array::from_iter(q.order.iter()),
-    limit_n: q.limit_n,
-    decode: q.decode,
-  }
+  attach(
+    self,
+    t,
+    on(self.cols, t.cols).raw(),
+    (self.cols, Nullable(t.cols, t.all)),
+    Left,
+  )
 }
 
 ///|
@@ -129,4 +115,23 @@ fn[C1, C2, R2, A] join_with(
 /// `T?` even though the entity declares them as `T`.
 pub fn[T] Column::nullable(self : Column[T]) -> Column[T?] {
   Column::new(tbl=self.tbl(), name=self.name())
+}
+
+// Destructuring the joined columns.
+//
+// Chained joins nest their column handles to the left, and MoonBit has no
+// pattern in a lambda parameter to take them apart with. These adapters do it
+// instead: they turn a function of N named arguments into the single-argument
+// function the combinators expect, so `.0.0` lives here and not in user code.
+
+///|
+/// Take a two-table join apart into its two column sets.
+///
+///   |> Query::filter(split2((u, p) => u.age.gte(18) & p.title.ne("draft")))
+///
+/// Deliberately stops at two. With three tables the arguments start needing
+/// positional `_` placeholders, at which point naming the shape with
+/// `Query::map_cols` reads better than destructuring it.
+pub fn[A, B, R] split2(f : (A, B) -> R) -> ((A, B)) -> R {
+  t => f(t.0, t.1)
 }

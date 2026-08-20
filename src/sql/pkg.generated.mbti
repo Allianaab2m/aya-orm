@@ -36,6 +36,8 @@ pub fn[A : SqlDecode, B : SqlDecode] sel2(Column[A], Column[B]) -> Selection[(A,
 
 pub fn[A : SqlDecode, B : SqlDecode, C : SqlDecode] sel3(Column[A], Column[B], Column[C]) -> Selection[(A, B, C)]
 
+pub fn[A, B, R] split2((A, B) -> R) -> ((A, B)) -> R
+
 pub fn[T : SqlDecode + SqlNum] sum(Column[T]) -> Reducer[T?]
 
 pub async fn[D : Driver, A] transaction(Tx[D], async (Tx[D]) -> A) -> A
@@ -201,6 +203,7 @@ pub fn[C1, C2, R2, A] Query::join(Self[C1, A], Table[C2, R2], (C1, C2) -> Expr[B
 pub fn[C1, C2, R2, A] Query::left_join(Self[C1, A], Table[C2, R2], (C1, C2) -> Expr[Bool]) -> Self[(C1, Nullable[C2, R2]), A]
 pub fn[C, A] Query::limit(Self[C, A], Int) -> Self[C, A]
 pub fn[C, R, O] Query::map(Self[C, R], (C) -> Selection[O]) -> Self[C, O]
+pub fn[C, D, A] Query::map_cols(Self[C, A], (C) -> D) -> Self[D, A]
 pub async fn[E : Executor, C, A] Query::one(Self[C, A], E) -> A
 pub fn[C, A] Query::order_by(Self[C, A], (C) -> Array[OrderKey]) -> Self[C, A]
 pub fn[C, A, S] Query::reduce(Self[C, A], (C) -> Reducer[S]) -> Self[C, S]

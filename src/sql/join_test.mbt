@@ -173,3 +173,74 @@ fn tags() -> Table[TagCols, String] {
     write=Binding::new(["label"], s => [SqlEncode::to_sql_value(s)]),
   )
 }
+
+///|
+/// `map_cols` only renames the handles; it does not touch the SQL built so far.
+/// Flattening to a tuple is the lightweight option when a struct is overkill.
+test "map_cols flattens nested join columns" {
+  let nested = from(users())
+    |> Query::join(posts(), (u, p) => u.id.eq_col(p.author_id))
+    |> Query::join(tags(), (c, t) => c.1.id.eq_col(t.post_id))
+  let flat = nested |> Query::map_cols(c => (c.0.0, c.0.1, c.1))
+  // Same three tables, reached as .0 / .1 / .2 instead of .0.0 / .0.1 / .1
+  let a = (nested
+  |> Query::filter(c => c.0.0.age.gte(18))
+  |> Query::map(c => sel2(c.0.1.title, c.1.label))).to_sql()
+  let b = (flat
+  |> Query::filter(c => c.0.age.gte(18))
+  |> Query::map(c => sel2(c.1.title, c.2.label))).to_sql()
+  assert_eq(a.0, b.0)
+  inspect(
+    b.0,
+    content=(
+      #|SELECT p."title", t."label"
+      #|  FROM "users" AS u
+      #|  JOIN "posts" AS p ON u."id" = p."author_id"
+      #|  JOIN "tags" AS t ON p."id" = t."post_id"
+      #| WHERE u."age" >= ?
+    ),
+  )
+}
+
+///|
+/// `split2` supplies the destructuring MoonBit cannot express in a lambda
+/// parameter, so a two-table join never has to be indexed into.
+test "split2 stands in for lambda destructuring" {
+  inspect(
+    (from(users())
+    |> Query::join(posts(), (u, p) => u.id.eq_col(p.author_id))
+    |> Query::filter(split2((u, p) => u.age.gte(18) & p.title.ne("draft")))
+    |> Query::map(split2((_u, p) => sel(p.title)))).to_sql().0,
+    content=(
+      #|SELECT p."title"
+      #|  FROM "users" AS u
+      #|  JOIN "posts" AS p ON u."id" = p."author_id"
+      #| WHERE u."age" >= ? AND p."title" <> ?
+    ),
+  )
+}
+
+///|
+/// A type alias makes the joined shape nameable without changing what the
+/// query carries, so a named query can have a readable signature while still
+/// carrying a plain tuple.
+pub type UserPost = (UserCols, PostCols)
+
+///|
+fn joined_users() -> Query[UserPost, String] {
+  from(users())
+  |> Query::join(posts(), (u, p) => u.id.eq_col(p.author_id))
+  |> Query::map(split2((_u, p) => sel(p.title)))
+}
+
+///|
+test "an alias names the joined shape" {
+  inspect(
+    joined_users().to_sql().0,
+    content=(
+      #|SELECT p."title"
+      #|  FROM "users" AS u
+      #|  JOIN "posts" AS p ON u."id" = p."author_id"
+    ),
+  )
+}

@@ -60,6 +60,31 @@ pub fn[C, R, O] Query::map(
 }
 
 ///|
+/// Replace the column handles the query carries.
+///
+/// Chained joins nest their columns to the left — `((C1, C2), C3)` — and
+/// indexing through that nesting at every later step reads badly. Collapsing
+/// it once, into a flat tuple or a struct with names, keeps the rest of the
+/// pipeline legible. Only the handles change; the SQL built so far does not.
+pub fn[C, D, A] Query::map_cols(
+  self : Query[C, A],
+  f : (C) -> D,
+) -> Query[D, A] {
+  {
+    source: self.source,
+    source_tbl: self.source_tbl,
+    joins: Array::from_iter(self.joins.iter()),
+    cols: f(self.cols),
+    projection: Array::from_iter(self.projection.iter()),
+    wheres: Array::from_iter(self.wheres.iter()),
+    group: Array::from_iter(self.group.iter()),
+    order: Array::from_iter(self.order.iter()),
+    limit_n: self.limit_n,
+    decode: self.decode,
+  }
+}
+
+///|
 /// Collapse the whole result into one summary row.
 ///
 /// The projection becomes the aggregates and nothing else, which is why a
