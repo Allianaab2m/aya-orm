@@ -193,7 +193,7 @@ pub fn[C, R, O] Query::map(Self[C, R], (C) -> Selection[O]) -> Self[C, O]
 pub fn[D : Driver, C, A] Query::one(Self[C, A], D) -> A raise
 pub fn[C, A] Query::order_by(Self[C, A], (C) -> Array[OrderKey]) -> Self[C, A]
 pub fn[D : Driver, C, A] Query::run(Self[C, A], D) -> Array[A] raise
-pub fn[C, A] Query::to_sql(Self[C, A], dialect? : Dialect) -> (String, Array[SqlValue]) raise StatementError
+pub fn[C, A] Query::to_sql(Self[C, A], dialect? : Dialect, shape? : RowShape) -> (String, Array[SqlValue]) raise StatementError
 
 pub enum RawExpr {
   Col(tbl~ : String, name~ : String)
@@ -203,6 +203,11 @@ pub enum RawExpr {
   InList(RawExpr, Array[SqlValue])
   Agg(String, RawExpr?)
 } derive(@debug.Debug)
+
+pub(all) enum RowShape {
+  Plain
+  Typed
+} derive(Eq, @debug.Debug)
 
 pub struct Selection[Out] {
   exprs : Array[RawExpr]

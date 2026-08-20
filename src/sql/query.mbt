@@ -73,6 +73,7 @@ pub fn[C, A] Query::limit(self : Query[C, A], n : Int) -> Query[C, A] {
 pub fn[C, A] Query::to_sql(
   self : Query[C, A],
   dialect? : Dialect = Dialect::Sqlite,
+  shape? : RowShape = RowShape::Plain,
 ) -> (String, Array[SqlValue]) raise StatementError {
   // Every table in the query must have its own alias, otherwise `u."id"`
   // silently refers to whichever one the database picks.
@@ -86,7 +87,19 @@ pub fn[C, A] Query::to_sql(
   let em = Emitter::new(dialect)
   let buf = StringBuilder::new()
 
-  let select = join(self.projection.map(p => em.expr(p)), ", ")
+  let select = join(
+    self.projection.map(p => {
+      // Rendered once and used twice on purpose: `Emitter::expr` appends any
+      // literal it meets to the parameter list, so rendering a second time
+      // would bind the same value twice and shift every later placeholder.
+      let e = em.expr(p)
+      match shape {
+        Plain => e
+        Typed => "typeof(\{e}), \{e}"
+      }
+    }),
+    ", ",
+  )
   buf.write_string("SELECT \{select}")
   buf.write_string("\n  FROM \"\{self.source}\" AS \{self.source_tbl}")
   for j in self.joins {

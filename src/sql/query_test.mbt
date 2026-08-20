@@ -125,3 +125,20 @@ test "into2 lifts a tuple into a struct" {
     ),
   )
 }
+
+///|
+/// A driver whose binding cannot report a result column's type asks for the
+/// SELECT list to carry it, and gets each projected expression written twice:
+/// once inside `typeof`, once on its own.
+test "a typed projection writes typeof beside every column" {
+  inspect(
+    (from(users())
+    |> Query::filter(u => u.age.gte(18))
+    |> Query::map(u => sel2(u.id, u.name))).to_sql(shape=Typed).0,
+    content=(
+      #|SELECT typeof(u."id"), u."id", typeof(u."name"), u."name"
+      #|  FROM "users" AS u
+      #| WHERE u."age" >= ?
+    ),
+  )
+}
