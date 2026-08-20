@@ -47,7 +47,7 @@ fn emit_cols_struct(spec : EntitySpec) -> String {
   let buf = StringBuilder::new()
   buf.write_string("///|\n")
   buf.write_string("/// Column handles for `\{spec.type_name}`.\n")
-  buf.write_string("pub struct \{cols_name(spec)} {\n")
+  buf.write_string("pub struct \{spec.cols_name} {\n")
   for f in spec.fields {
     buf.write_string("  \{f.name} : \{SQL}.Column[\{f.ty}]\n")
   }
@@ -60,7 +60,7 @@ fn emit_cols_struct(spec : EntitySpec) -> String {
 fn emit_cols_fn(spec : EntitySpec) -> String {
   let buf = StringBuilder::new()
   buf.write_string("///|\n")
-  buf.write_string("pub fn \{spec.type_name}::cols() -> \{cols_name(spec)} {\n")
+  buf.write_string("pub fn \{spec.type_name}::cols() -> \{spec.cols_name} {\n")
   buf.write_string("  {\n")
   for f in spec.fields {
     buf.write_string(
@@ -83,7 +83,7 @@ fn emit_selection_fn(spec : EntitySpec) -> String {
     "/// Select every column of `\{spec.type_name}`, in declaration order.\n",
   )
   buf.write_string(
-    "pub fn \{spec.type_name}::all(cols : \{cols_name(spec)}) -> \{SQL}.Selection[\{spec.type_name}] {\n",
+    "pub fn \{spec.type_name}::all(cols : \{spec.cols_name}) -> \{SQL}.Selection[\{spec.type_name}] {\n",
   )
   buf.write_string("  \{SQL}.Selection::new(\n    [\n")
   for f in spec.fields {
@@ -114,7 +114,7 @@ fn emit_binding_fn(spec : EntitySpec) -> String {
     "pub fn \{spec.type_name}::binding() -> \{SQL}.Binding[\{spec.type_name}] {\n",
   )
   buf.write_string("  \{SQL}.Binding::new(\n    [")
-  buf.write_string(join(spec.fields.map(f => "\"\{f.column}\""), ", "))
+  buf.write_string(spec.fields.map(f => "\"\{f.column}\"").join(", "))
   buf.write_string("],\n    self => [\n")
   for f in spec.fields {
     buf.write_string("      \{SQL}.SqlEncode::to_sql_value(self.\{f.name}),\n")
@@ -129,7 +129,7 @@ fn emit_table_fn(spec : EntitySpec) -> String {
   let buf = StringBuilder::new()
   buf.write_string("///|\n")
   buf.write_string(
-    "pub fn \{spec.type_name}::table() -> \{SQL}.Table[\{cols_name(spec)}, \{spec.type_name}] {\n",
+    "pub fn \{spec.type_name}::table() -> \{SQL}.Table[\{spec.cols_name}, \{spec.type_name}] {\n",
   )
   buf.write_string("  let cols = \{spec.type_name}::cols()\n")
   buf.write_string(
@@ -156,7 +156,7 @@ fn emit_table_of_fn(spec : EntitySpec) -> String {
     "/// Build a table over a domain type mapped to and from `\{row}`.\n",
   )
   buf.write_string(
-    "pub fn[D] \{row}::table_of(\n  to_domain : (\{row}) -> D raise \{SQL}.DecodeError,\n  from_domain : (D) -> \{row},\n) -> \{SQL}.Table[\{cols_name(spec)}, D] {\n",
+    "pub fn[D] \{row}::table_of(\n  to_domain : (\{row}) -> D raise \{SQL}.DecodeError,\n  from_domain : (D) -> \{row},\n) -> \{SQL}.Table[\{spec.cols_name}, D] {\n",
   )
   buf.write_string("  let cols = \{row}::cols()\n")
   buf.write_string(
@@ -180,23 +180,4 @@ fn emit_primary_key_fn(spec : EntitySpec) -> String {
     "pub fn \{spec.type_name}::primary_key_name() -> String? {\n  \{body}\n}\n",
   )
   buf.to_string()
-}
-
-///|
-/// Join strings with a separator.
-fn join(parts : Array[String], sep : String) -> String {
-  let buf = StringBuilder::new()
-  for i, p in parts {
-    if i > 0 {
-      buf.write_string(sep)
-    }
-    buf.write_string(p)
-  }
-  buf.to_string()
-}
-
-///|
-/// Name of the generated column-handle struct.
-fn cols_name(spec : EntitySpec) -> String {
-  spec.cols_name
 }

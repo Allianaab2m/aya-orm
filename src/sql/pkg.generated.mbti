@@ -24,8 +24,6 @@ pub fn[C, R] insert_except(Table[C, R], R, omit~ : Array[String]) -> Insert
 
 pub fn[C, R] insert_many(Table[C, R], Array[R]) -> Insert
 
-pub fn join(Array[String], String) -> String
-
 pub fn[T : SqlDecode + SqlOrd] max(Column[T]) -> Reducer[T?]
 
 pub fn[T : SqlDecode + SqlOrd] min(Column[T]) -> Reducer[T?]
@@ -89,7 +87,10 @@ pub fn[A, B] Binding::contramap(Self[A], (B) -> A) -> Self[B]
 pub fn[In] Binding::new(Array[String], (In) -> Array[SqlValue]) -> Self[In]
 pub fn[In] Binding::without(Self[In], Array[String]) -> Self[In]
 
-pub struct Column[T](String, String)
+pub struct Column[T] {
+  tbl : String
+  name : String
+}
 pub fn[T : SqlOrd] Column::asc(Self[T]) -> OrderKey
 pub fn[T : SqlOrd] Column::desc(Self[T]) -> OrderKey
 pub fn[T : SqlEncode] Column::eq(Self[T], T) -> Expr[Bool]
@@ -102,12 +103,10 @@ pub fn[T] Column::is_none(Self[T?]) -> Expr[Bool]
 pub fn[T] Column::is_some(Self[T?]) -> Expr[Bool]
 pub fn[T : SqlEncode + SqlOrd] Column::lt(Self[T], T) -> Expr[Bool]
 pub fn[T : SqlEncode + SqlOrd] Column::lte(Self[T], T) -> Expr[Bool]
-pub fn[T] Column::name(Self[T]) -> String
 pub fn[T : SqlEncode] Column::ne(Self[T], T) -> Expr[Bool]
 pub fn[T] Column::new(tbl~ : String, name~ : String) -> Self[T]
 pub fn[T] Column::nullable(Self[T]) -> Self[T?]
 pub fn[T] Column::raw(Self[T]) -> RawExpr
-pub fn[T] Column::tbl(Self[T]) -> String
 
 pub struct Delete[Cols] {
   table_name : String
@@ -219,10 +218,7 @@ pub enum RawExpr {
   Agg(String, RawExpr?)
 } derive(@debug.Debug)
 
-pub struct Reducer[Out] {
-  exprs : Array[RawExpr]
-  read : (ArrayView[SqlValue]) -> Out raise DecodeError
-}
+type Reducer[Out]
 pub fn[A, B] Reducer::map(Self[A], (A) -> B raise DecodeError) -> Self[B]
 pub fn[A, B] Reducer::zip(Self[A], Self[B]) -> Self[(A, B)]
 

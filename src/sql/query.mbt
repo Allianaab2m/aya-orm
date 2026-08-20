@@ -1,4 +1,9 @@
 ///|
+/// A SELECT under construction, together with what its rows decode to.
+///
+/// `Cols` is the column handles the combinators are written against — one
+/// table's `Cols` struct to begin with, a tuple once joins are added. `A` is
+/// what a row becomes, which is the table's entity until `map` says otherwise.
 pub struct Query[Cols, A] {
   source : String
   source_tbl : String
@@ -13,13 +18,14 @@ pub struct Query[Cols, A] {
 }
 
 ///|
+/// Start a query from a table, selecting every column it declares.
 pub fn[C, R] from(t : Table[C, R]) -> Query[C, R] {
   {
     source: t.table_name,
     source_tbl: t.tbl,
     joins: [],
     cols: t.cols,
-    projection: Array::from_iter(t.all.exprs.iter()),
+    projection: t.all.exprs.copy(),
     wheres: [],
     group: [],
     order: [],
@@ -29,34 +35,58 @@ pub fn[C, R] from(t : Table[C, R]) -> Query[C, R] {
 }
 
 ///|
+/// Rebuild a query around a new projection, decoder and set of column handles.
+///
+/// The four combinators that change what a query yields — `map`, `map_cols`,
+/// `reduce` and `group_by` — each change some of `cols`, `projection`, `group`
+/// and `decode`, and none of the rest. They cannot say `{ ..self, .. }`
+/// because the result's type parameters differ from the source's, so the part
+/// they share is spelled here once instead of four times.
+fn[C, A, D, B] Query::respec(
+  self : Query[C, A],
+  cols~ : D,
+  projection~ : Array[RawExpr],
+  group~ : Array[RawExpr],
+  decode~ : (Row) -> B raise DecodeError,
+) -> Query[D, B] {
+  {
+    source: self.source,
+    source_tbl: self.source_tbl,
+    joins: self.joins,
+    cols,
+    projection,
+    wheres: self.wheres,
+    group,
+    order: self.order,
+    limit_n: self.limit_n,
+    decode,
+  }
+}
+
+///|
+/// Narrow the result. Conditions accumulate and are ANDed together.
 pub fn[C, A] Query::filter(
   self : Query[C, A],
   f : (C) -> Expr[Bool],
 ) -> Query[C, A] {
-  let wheres = Array::from_iter(self.wheres.iter())
+  let wheres = self.wheres.copy()
   wheres.push(f(self.cols).raw())
-
   { ..self, wheres, }
 }
 
 ///|
+/// Replace the projection, and with it what a row decodes to.
 pub fn[C, R, O] Query::map(
   self : Query[C, R],
   f : (C) -> Selection[O],
 ) -> Query[C, O] {
   let s = f(self.cols)
-  {
-    source: self.source,
-    source_tbl: self.source_tbl,
-    joins: Array::from_iter(self.joins.iter()),
-    cols: self.cols,
-    projection: Array::from_iter(s.exprs.iter()),
-    wheres: Array::from_iter(self.wheres.iter()),
-    group: Array::from_iter(self.group.iter()),
-    order: Array::from_iter(self.order.iter()),
-    limit_n: self.limit_n,
-    decode: s.read,
-  }
+  self.respec(
+    cols=self.cols,
+    projection=s.exprs.copy(),
+    group=self.group,
+    decode=s.read,
+  )
 }
 
 ///|
@@ -70,18 +100,12 @@ pub fn[C, D, A] Query::map_cols(
   self : Query[C, A],
   f : (C) -> D,
 ) -> Query[D, A] {
-  {
-    source: self.source,
-    source_tbl: self.source_tbl,
-    joins: Array::from_iter(self.joins.iter()),
-    cols: f(self.cols),
-    projection: Array::from_iter(self.projection.iter()),
-    wheres: Array::from_iter(self.wheres.iter()),
-    group: Array::from_iter(self.group.iter()),
-    order: Array::from_iter(self.order.iter()),
-    limit_n: self.limit_n,
-    decode: self.decode,
-  }
+  self.respec(
+    cols=f(self.cols),
+    projection=self.projection,
+    group=self.group,
+    decode=self.decode,
+  )
 }
 
 ///|
@@ -94,19 +118,13 @@ pub fn[C, A, S] Query::reduce(
   self : Query[C, A],
   f : (C) -> Reducer[S],
 ) -> Query[C, S] {
-  let r = f(self.cols)
-  {
-    source: self.source,
-    source_tbl: self.source_tbl,
-    joins: Array::from_iter(self.joins.iter()),
-    cols: self.cols,
-    projection: Array::from_iter(r.exprs.iter()),
-    wheres: Array::from_iter(self.wheres.iter()),
-    group: [],
-    order: Array::from_iter(self.order.iter()),
-    limit_n: self.limit_n,
-    decode: r.read,
-  }
+  let r = f(self.cols).selection()
+  self.respec(
+    cols=self.cols,
+    projection=r.exprs.copy(),
+    group=[],
+    decode=r.read,
+  )
 }
 
 ///|
@@ -121,25 +139,17 @@ pub fn[C, A, K : SqlDecode, S] Query::group_by(
   f : (C) -> Reducer[S],
 ) -> Query[C, (K, S)] {
   let k = key(self.cols)
-  let r = f(self.cols)
-  let projection : Array[RawExpr] = [k.raw()]
+  let r = f(self.cols).selection()
+  let name = k.name
+  let projection = [k.raw()]
   projection.push_iter(r.exprs.iter())
-  let name = k.name()
-  {
-    source: self.source,
-    source_tbl: self.source_tbl,
-    joins: Array::from_iter(self.joins.iter()),
-    cols: self.cols,
-    projection,
-    wheres: Array::from_iter(self.wheres.iter()),
-    group: [k.raw()],
-    order: Array::from_iter(self.order.iter()),
-    limit_n: self.limit_n,
-    decode: row => (SqlDecode::decode(row[0], name), (r.read)(row[1:])),
-  }
+  self.respec(cols=self.cols, projection~, group=[k.raw()], decode=row => {
+    (SqlDecode::decode(row[0], name), (r.read)(row[1:]))
+  })
 }
 
 ///|
+/// Sort the result. The last call wins; keys are not accumulated.
 pub fn[C, A] Query::order_by(
   self : Query[C, A],
   f : (C) -> Array[OrderKey],
@@ -148,68 +158,72 @@ pub fn[C, A] Query::order_by(
 }
 
 ///|
+/// Cap how many rows come back.
 pub fn[C, A] Query::limit(self : Query[C, A], n : Int) -> Query[C, A] {
   { ..self, limit_n: Some(n) }
 }
 
 ///|
+/// Build the statement text and its parameters, in placeholder order.
 pub fn[C, A] Query::to_sql(
   self : Query[C, A],
   dialect? : Dialect = Dialect::Sqlite,
   shape? : RowShape = RowShape::Plain,
 ) -> (String, Array[SqlValue]) raise StatementError {
-  // Every table in the query must have its own alias, otherwise `u."id"`
-  // silently refers to whichever one the database picks.
-  let seen = [self.source_tbl]
-  for j in self.joins {
-    if seen.contains(j.tbl) {
-      raise DuplicateAlias(tbl=j.tbl)
-    }
-    seen.push(j.tbl)
-  }
+  self.check_aliases()
   let em = Emitter::new(dialect)
   let buf = StringBuilder::new()
-
-  let select = join(
-    self.projection.map(p => {
-      // Rendered once and used twice on purpose: `Emitter::expr` appends any
-      // literal it meets to the parameter list, so rendering a second time
-      // would bind the same value twice and shift every later placeholder.
-      let e = em.expr(p)
-      match shape {
-        Plain => e
-        Typed => "typeof(\{e}), \{e}"
-      }
-    }),
-    ", ",
-  )
-  buf.write_string("SELECT \{select}")
+  buf.write_string("SELECT " + self.select_list(em, shape))
   buf.write_string("\n  FROM \"\{self.source}\" AS \{self.source_tbl}")
   for j in self.joins {
     buf.write_string(
       "\n  \{j.kind} \"\{j.table_name}\" AS \{j.tbl} ON \{em.expr(j.on)}",
     )
   }
-
-  if self.wheres.length() > 0 {
-    let parts = self.wheres.map(w => em.expr(w))
-    buf.write_string("\n WHERE " + join(parts, "\n   AND "))
-  }
-
+  buf.write_string(em.where_clause(self.wheres, indent=" "))
   if self.group.length() > 0 {
     buf.write_string(
-      "\n GROUP BY " + join(self.group.map(g => em.expr(g)), ", "),
+      "\n GROUP BY " + self.group.map(g => em.expr(g)).join(", "),
     )
   }
   if self.order.length() > 0 {
     let keys = self.order.map(k => "\{em.expr(k.expr)} \{k.dir}")
-    buf.write_string("\n ORDER BY " + join(keys, ", "))
+    buf.write_string("\n ORDER BY " + keys.join(", "))
   }
-
-  match self.limit_n {
-    Some(n) => buf.write_string("\n LIMIT \{em.param(VInt(n.to_int64()))}")
-    None => ()
+  if self.limit_n is Some(n) {
+    buf.write_string("\n LIMIT \{em.param(VInt(n.to_int64()))}")
   }
-
   (buf.to_string(), em.params)
+}
+
+///|
+/// Every table in one query needs its own alias, otherwise `u."id"` silently
+/// refers to whichever of them the database picks.
+fn[C, A] Query::check_aliases(self : Query[C, A]) -> Unit raise StatementError {
+  let seen = [self.source_tbl]
+  for j in self.joins {
+    guard !seen.contains(j.tbl) else { raise DuplicateAlias(tbl=j.tbl) }
+    seen.push(j.tbl)
+  }
+}
+
+///|
+/// Write the SELECT list in the shape the executor asked for.
+fn[C, A] Query::select_list(
+  self : Query[C, A],
+  em : Emitter,
+  shape : RowShape,
+) -> String {
+  self.projection
+  .map(p => {
+    // Rendered once and used twice on purpose: `Emitter::expr` appends any
+    // literal it meets to the parameter list, so rendering a second time would
+    // bind the same value twice and shift every later placeholder.
+    let e = em.expr(p)
+    match shape {
+      Plain => e
+      Typed => "typeof(\{e}), \{e}"
+    }
+  })
+  .join(", ")
 }

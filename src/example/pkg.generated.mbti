@@ -7,92 +7,11 @@ import {
 }
 
 // Values
-pub fn drafts_as_orders() -> @sql.Query[DraftCols, Order]
-
 pub fn orders() -> @sql.Table[OrderCols, Order]
-
-pub fn shipped_as_orders() -> @sql.Query[ShippedCols, Order]
-
-pub fn submit(DraftRow, at~ : String) -> ((String, Array[@sql.SqlValue]), (String, Array[@sql.SqlValue])) raise @sql.StatementError
-
-pub fn submitted_as_orders() -> @sql.Query[SubmittedCols, Order]
-
-pub fn ticket_query() -> @sql.Query[TicketJoin, Ticket]
 
 // Errors
 
 // Types and methods
-pub(all) struct Account {
-  id : AccountId
-  email : String
-  plan : Plan
-} derive(Eq, @debug.Debug)
-pub fn Account::all(AccountCols) -> @sql.Selection[Self]
-pub fn Account::binding() -> @sql.Binding[Self]
-pub fn Account::cols() -> AccountCols
-pub fn Account::primary_key_name() -> String?
-pub fn Account::table() -> @sql.Table[AccountCols, Self]
-pub fn[D] Account::table_of((Self) -> D raise @sql.DecodeError, (D) -> Self) -> @sql.Table[AccountCols, D]
-
-pub struct AccountCols {
-  id : @sql.Column[AccountId]
-  email : @sql.Column[String]
-  plan : @sql.Column[Plan]
-}
-
-pub(all) struct AccountId(Int) derive(Eq, @debug.Debug)
-pub impl @sql.SqlDecode for AccountId
-pub impl @sql.SqlEncode for AccountId
-
-pub struct AssignmentCols {
-  ticket_id : @sql.Column[Int]
-  assignee : @sql.Column[String]
-}
-
-pub(all) struct AssignmentRow {
-  ticket_id : Int
-  assignee : String
-} derive(Eq, @debug.Debug)
-pub fn AssignmentRow::all(AssignmentCols) -> @sql.Selection[Self]
-pub fn AssignmentRow::binding() -> @sql.Binding[Self]
-pub fn AssignmentRow::cols() -> AssignmentCols
-pub fn AssignmentRow::primary_key_name() -> String?
-pub fn AssignmentRow::table() -> @sql.Table[AssignmentCols, Self]
-pub fn[D] AssignmentRow::table_of((Self) -> D raise @sql.DecodeError, (D) -> Self) -> @sql.Table[AssignmentCols, D]
-
-pub struct ClosureCols {
-  ticket_id : @sql.Column[Int]
-  resolution : @sql.Column[String]
-}
-
-pub(all) struct ClosureRow {
-  ticket_id : Int
-  resolution : String
-} derive(Eq, @debug.Debug)
-pub fn ClosureRow::all(ClosureCols) -> @sql.Selection[Self]
-pub fn ClosureRow::binding() -> @sql.Binding[Self]
-pub fn ClosureRow::cols() -> ClosureCols
-pub fn ClosureRow::primary_key_name() -> String?
-pub fn ClosureRow::table() -> @sql.Table[ClosureCols, Self]
-pub fn[D] ClosureRow::table_of((Self) -> D raise @sql.DecodeError, (D) -> Self) -> @sql.Table[ClosureCols, D]
-
-pub struct DraftCols {
-  id : @sql.Column[Int]
-  items : @sql.Column[Int]
-}
-
-pub(all) struct DraftRow {
-  id : Int
-  items : Int
-} derive(Eq, @debug.Debug)
-pub fn DraftRow::all(DraftCols) -> @sql.Selection[Self]
-pub fn DraftRow::binding() -> @sql.Binding[Self]
-pub fn DraftRow::cols() -> DraftCols
-pub fn DraftRow::primary_key_name() -> String?
-pub fn DraftRow::table() -> @sql.Table[DraftCols, Self]
-pub fn[D] DraftRow::table_of((Self) -> D raise @sql.DecodeError, (D) -> Self) -> @sql.Table[DraftCols, D]
-pub fn DraftRow::to_order(Self) -> Order
-
 pub(all) enum Order {
   Draft(id~ : Int, items~ : Int)
   Submitted(id~ : Int, items~ : Int, submitted_at~ : String)
@@ -123,89 +42,6 @@ pub fn OrderRow::primary_key_name() -> String?
 pub fn OrderRow::table() -> @sql.Table[OrderCols, Self]
 pub fn[D] OrderRow::table_of((Self) -> D raise @sql.DecodeError, (D) -> Self) -> @sql.Table[OrderCols, D]
 
-pub(all) enum Plan {
-  Free
-  Pro
-} derive(Eq, @debug.Debug)
-pub impl @sql.SqlDecode for Plan
-pub impl @sql.SqlEncode for Plan
-
-pub struct ShippedCols {
-  id : @sql.Column[Int]
-  items : @sql.Column[Int]
-  submitted_at : @sql.Column[String]
-  tracking : @sql.Column[String]
-}
-
-pub(all) struct ShippedRow {
-  id : Int
-  items : Int
-  submitted_at : String
-  tracking : String
-} derive(Eq, @debug.Debug)
-pub fn ShippedRow::all(ShippedCols) -> @sql.Selection[Self]
-pub fn ShippedRow::binding() -> @sql.Binding[Self]
-pub fn ShippedRow::cols() -> ShippedCols
-pub fn ShippedRow::primary_key_name() -> String?
-pub fn ShippedRow::table() -> @sql.Table[ShippedCols, Self]
-pub fn[D] ShippedRow::table_of((Self) -> D raise @sql.DecodeError, (D) -> Self) -> @sql.Table[ShippedCols, D]
-pub fn ShippedRow::to_order(Self) -> Order
-
-type SqlTickets[D]
-pub fn[D] SqlTickets::new(@sql.Tx[D]) -> Self[D]
-pub impl[D : @sql.Driver] TicketRepository for SqlTickets[D]
-
-pub struct SubmittedCols {
-  id : @sql.Column[Int]
-  items : @sql.Column[Int]
-  submitted_at : @sql.Column[String]
-}
-
-pub(all) struct SubmittedRow {
-  id : Int
-  items : Int
-  submitted_at : String
-} derive(Eq, @debug.Debug)
-pub fn SubmittedRow::all(SubmittedCols) -> @sql.Selection[Self]
-pub fn SubmittedRow::binding() -> @sql.Binding[Self]
-pub fn SubmittedRow::cols() -> SubmittedCols
-pub fn SubmittedRow::primary_key_name() -> String?
-pub fn SubmittedRow::table() -> @sql.Table[SubmittedCols, Self]
-pub fn[D] SubmittedRow::table_of((Self) -> D raise @sql.DecodeError, (D) -> Self) -> @sql.Table[SubmittedCols, D]
-pub fn SubmittedRow::to_order(Self) -> Order
-
-pub(all) enum Ticket {
-  Open(id~ : Int, subject~ : String)
-  Assigned(id~ : Int, subject~ : String, assignee~ : String)
-  Closed(id~ : Int, subject~ : String, assignee~ : String, resolution~ : String)
-} derive(Eq, @debug.Debug)
-pub fn Ticket::assignee(Self) -> String?
-pub fn Ticket::id(Self) -> Int
-pub fn Ticket::resolution(Self) -> String?
-pub fn Ticket::subject(Self) -> String
-
-pub struct TicketCols {
-  id : @sql.Column[Int]
-  subject : @sql.Column[String]
-}
-
-pub struct TicketJoin {
-  ticket : TicketCols
-  assignment : @sql.Nullable[AssignmentCols, AssignmentRow]
-  closure : @sql.Nullable[ClosureCols, ClosureRow]
-}
-
-pub(all) struct TicketRow {
-  id : Int
-  subject : String
-} derive(Eq, @debug.Debug)
-pub fn TicketRow::all(TicketCols) -> @sql.Selection[Self]
-pub fn TicketRow::binding() -> @sql.Binding[Self]
-pub fn TicketRow::cols() -> TicketCols
-pub fn TicketRow::primary_key_name() -> String?
-pub fn TicketRow::table() -> @sql.Table[TicketCols, Self]
-pub fn[D] TicketRow::table_of((Self) -> D raise @sql.DecodeError, (D) -> Self) -> @sql.Table[TicketCols, D]
-
 pub(all) struct User {
   id : Int
   name : String
@@ -229,8 +65,3 @@ pub struct UserCols {
 // Type aliases
 
 // Traits
-pub(open) trait TicketRepository {
-  async fn find(Self, Int) -> Ticket?
-  async fn save(Self, Ticket) -> Unit
-  async fn unassigned(Self) -> Array[Ticket]
-}

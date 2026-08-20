@@ -43,20 +43,15 @@ fn[C1, C2, R2, A, D] attach(
   cols : D,
   kind : JoinKind,
 ) -> Query[D, A] {
-  let joins = Array::from_iter(q.joins.iter())
+  let joins = q.joins.copy()
   joins.push({ kind, table_name: t.table_name, tbl: t.tbl, on })
-  {
-    source: q.source,
-    source_tbl: q.source_tbl,
-    joins,
-    cols,
-    projection: Array::from_iter(q.projection.iter()),
-    wheres: Array::from_iter(q.wheres.iter()),
-    group: Array::from_iter(q.group.iter()),
-    order: Array::from_iter(q.order.iter()),
-    limit_n: q.limit_n,
-    decode: q.decode,
-  }
+  let renamed = q.respec(
+    cols~,
+    projection=q.projection,
+    group=q.group,
+    decode=q.decode,
+  )
+  { ..renamed, joins, }
 }
 
 ///|
@@ -106,15 +101,6 @@ pub fn[C1, C2, R2, A] Query::left_join(
     (self.cols, Nullable(t.cols, t.all)),
     Left,
   )
-}
-
-///|
-/// Reinterpret a column as nullable.
-///
-/// The right-hand side of a LEFT JOIN can be absent, so its columns decode as
-/// `T?` even though the entity declares them as `T`.
-pub fn[T] Column::nullable(self : Column[T]) -> Column[T?] {
-  Column::new(tbl=self.tbl(), name=self.name())
 }
 
 // Destructuring the joined columns.

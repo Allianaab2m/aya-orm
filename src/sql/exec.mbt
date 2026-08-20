@@ -259,50 +259,51 @@ async fn[D : Driver] Tx::rollback_quietly(self : Tx[D]) -> Unit {
 }
 
 ///|
+/// Build the statement for this executor and run it.
+///
+/// The text comes back alongside the rows because `one` names the statement in
+/// the error it raises. `columns` is the width of the projection rather than
+/// of the SELECT list, which a `Typed` executor writes twice as wide.
+async fn[E : Executor, C, A] Query::fetch(
+  self : Query[C, A],
+  db : E,
+) -> (String, Array[Array[SqlValue]]) {
+  let (sql, params) = self.to_sql(
+    dialect=Executor::dialect(db),
+    shape=Executor::row_shape(db),
+  )
+  let rows = Executor::query(db, sql, params, columns=self.projection.length())
+  (sql, rows)
+}
+
+///|
 /// Run the query and decode every row.
 pub async fn[E : Executor, C, A] Query::run(
   self : Query[C, A],
   db : E,
 ) -> Array[A] {
-  let (sql, params) = self.to_sql(
-    dialect=Executor::dialect(db),
-    shape=Executor::row_shape(db),
-  )
-  let rows = Executor::query(db, sql, params, columns=self.projection.length())
-  let out = []
-  for row in rows {
-    out.push((self.decode)(row[:]))
-  }
-  out
+  let (_, rows) = self.fetch(db)
+  rows.map(row => (self.decode)(row[:]))
 }
 
 ///|
 /// Run the query and decode the single row it must return.
 pub async fn[E : Executor, C, A] Query::one(self : Query[C, A], db : E) -> A {
-  let (sql, params) = self.to_sql(
-    dialect=Executor::dialect(db),
-    shape=Executor::row_shape(db),
-  )
-  let rows = Executor::query(db, sql, params, columns=self.projection.length())
-  match rows.length() {
-    0 => raise NotFound(sql~)
-    1 => (self.decode)(rows[0][:])
-    n => raise TooManyRows(sql~, got=n)
+  let (sql, rows) = self.fetch(db)
+  match rows {
+    [] => raise NotFound(sql~)
+    [row] => (self.decode)(row[:])
+    _ => raise TooManyRows(sql~, got=rows.length())
   }
 }
 
 ///|
 /// Run the query and decode the first row, if there is one.
 pub async fn[E : Executor, C, A] Query::first(self : Query[C, A], db : E) -> A? {
-  let (sql, params) = self.to_sql(
-    dialect=Executor::dialect(db),
-    shape=Executor::row_shape(db),
-  )
-  let rows = Executor::query(db, sql, params, columns=self.projection.length())
-  if rows.is_empty() {
-    None
-  } else {
-    Some((self.decode)(rows[0][:]))
+  let (_, rows) = self.fetch(db)
+  match rows {
+    [] => None
+    [row, ..] => Some((self.decode)(row[:]))
   }
 }
 

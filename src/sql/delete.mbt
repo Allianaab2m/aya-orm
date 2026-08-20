@@ -30,7 +30,7 @@ pub fn[C, R] delete_all(t : Table[C, R]) -> Delete[C] {
 ///|
 /// Narrow a delete further. Conditions are ANDed together.
 pub fn[C] Delete::filter(self : Delete[C], f : (C) -> Expr[Bool]) -> Delete[C] {
-  let wheres = Array::from_iter(self.wheres.iter())
+  let wheres = self.wheres.copy()
   wheres.push(f(self.cols).raw())
   { ..self, wheres, }
 }
@@ -43,10 +43,6 @@ pub fn[C] Delete::to_sql(
   let em = Emitter::new(dialect)
   let buf = StringBuilder::new()
   buf.write_string("DELETE FROM \"\{self.table_name}\" AS \{self.tbl}")
-  if self.wheres.length() > 0 {
-    buf.write_string(
-      "\n  WHERE " + join(self.wheres.map(w => em.expr(w)), "\n    AND "),
-    )
-  }
+  buf.write_string(em.where_clause(self.wheres, indent="  "))
   (buf.to_string(), em.params)
 }

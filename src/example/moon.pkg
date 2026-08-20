@@ -9,6 +9,13 @@ import {
 
 // The example's tests exercise the execution layer, and that is `async`, so
 // they need `moonbitlang/async` — which supports the native backend only.
+//
+// Two entities, deliberately: `User` is the plain case where the generated
+// table is used directly, and `OrderRow` / `Order` is the seam where a row type
+// and a domain sum type are mapped through `table_of`. Everything else worth
+// showing is pinned where it is implemented — joins and `Nullable` in
+// `src/sql/join_test.mbt`, aggregation in `src/sql/reducer_test.mbt`, nested
+// transactions in `src/driver/fake` and `src/driver/sqlite`.
 
 options(
   backend: [ "native" ],
@@ -23,3 +30,7 @@ options(
 // the example is regenerated explicitly:
 //
 //   moon run src/gen/cmd -- src/example/entities.mbt -o src/example/entities.g.mbt
+//   moon run src/gen/cmd -- src/example/orders.mbt   -o src/example/orders.g.mbt
+//
+// then `moon fmt`, which is what the committed `.g.mbt` files are formatted
+// with.

@@ -1,3 +1,21 @@
+// The expression layer.
+//
+// `RawExpr` is the tree the emitter walks. `Expr[T]` and `Column[T]` are thin
+// typed wrappers over it: the `T` is a phantom that never reaches the SQL and
+// exists only to keep comparisons honest.
+
+///|
+/// Untyped expression tree. Whatever type the wrappers above it carried has
+/// been erased by the time an expression reaches here.
+pub enum RawExpr {
+  Col(tbl~ : String, name~ : String)
+  Lit(SqlValue)
+  Bin(BinOp, RawExpr, RawExpr)
+  Unary(String, RawExpr)
+  InList(RawExpr, Array[SqlValue])
+  Agg(String, RawExpr?)
+} derive(Debug)
+
 ///|
 pub enum BinOp {
   Eq
@@ -25,46 +43,9 @@ pub impl Show for BinOp with fn to_string(self) -> String {
 }
 
 ///|
-/// Deleted type expression tree. No generics are included.
-pub enum RawExpr {
-  Col(tbl~ : String, name~ : String)
-  Lit(SqlValue)
-  Bin(BinOp, RawExpr, RawExpr)
-  Unary(String, RawExpr)
-  InList(RawExpr, Array[SqlValue])
-  Agg(String, RawExpr?)
-} derive(Debug) ///|
-/// Typed expression. T is phantom type for the type of the expression.
-
-///|
+/// A typed expression. `T` is what the expression evaluates to in SQL terms;
+/// nothing at runtime carries it.
 pub struct Expr[T](RawExpr)
-
-///|
-/// Column reference
-pub struct Column[T](String, String)
-
-///|
-pub fn[T] Column::new(tbl~ : String, name~ : String) -> Column[T] {
-  Column(tbl, name)
-}
-
-///|
-pub fn[T] Column::expr(self : Column[T]) -> Expr[T] {
-  let Column(tbl, name) = self
-  Expr(Col(tbl~, name~))
-}
-
-///|
-pub fn[T] Column::tbl(self : Column[T]) -> String {
-  let Column(tbl, _) = self
-  tbl
-}
-
-///|
-pub fn[T] Column::name(self : Column[T]) -> String {
-  let Column(_, name) = self
-  name
-}
 
 ///|
 pub fn[T] Expr::raw(self : Expr[T]) -> RawExpr {
@@ -72,39 +53,84 @@ pub fn[T] Expr::raw(self : Expr[T]) -> RawExpr {
   r
 }
 
-// comparisons
+///|
+/// A reference to one column of one table.
+///
+/// Separate from `Expr[T]` because a column also has a name, which `sel`,
+/// `Binding` and `Update::set` need and a general expression cannot supply.
+pub struct Column[T] {
+  /// Alias of the table the column belongs to, as it appears in `FROM`.
+  tbl : String
+  /// Column name in the database.
+  name : String
+}
+
+///|
+pub fn[T] Column::new(tbl~ : String, name~ : String) -> Column[T] {
+  { tbl, name }
+}
+
+///|
+pub fn[T] Column::expr(self : Column[T]) -> Expr[T] {
+  Expr(Col(tbl=self.tbl, name=self.name))
+}
+
+///|
+pub fn[T] Column::raw(self : Column[T]) -> RawExpr {
+  self.expr().raw()
+}
+
+///|
+/// Reinterpret a column as nullable.
+///
+/// The right-hand side of a LEFT JOIN can be absent, so its columns decode as
+/// `T?` even though the entity declares them as `T`.
+pub fn[T] Column::nullable(self : Column[T]) -> Column[T?] {
+  { tbl: self.tbl, name: self.name }
+}
+
+// Comparisons.
+//
+// The six operators differ only in which `BinOp` they carry, so the shared
+// half — lifting the value into a bound literal — is written once in `cmp`.
+
+///|
+fn[T : SqlEncode] Expr::cmp(self : Expr[T], op : BinOp, v : T) -> Expr[Bool] {
+  Expr(Bin(op, self.raw(), Lit(v.to_sql_value())))
+}
 
 ///|
 pub fn[T : SqlEncode] Expr::eq(self : Expr[T], v : T) -> Expr[Bool] {
-  Expr(Bin(BinOp::Eq, self.raw(), Lit(v.to_sql_value())))
+  self.cmp(BinOp::Eq, v)
 }
 
 ///|
 pub fn[T : SqlEncode] Expr::ne(self : Expr[T], v : T) -> Expr[Bool] {
-  Expr(Bin(BinOp::Ne, self.raw(), Lit(v.to_sql_value())))
+  self.cmp(BinOp::Ne, v)
 }
 
 ///|
 pub fn[T : SqlEncode + SqlOrd] Expr::gt(self : Expr[T], v : T) -> Expr[Bool] {
-  Expr(Bin(BinOp::Gt, self.raw(), Lit(SqlEncode::to_sql_value(v))))
+  self.cmp(BinOp::Gt, v)
 }
 
 ///|
 pub fn[T : SqlEncode + SqlOrd] Expr::gte(self : Expr[T], v : T) -> Expr[Bool] {
-  Expr(Bin(BinOp::Gte, self.raw(), Lit(SqlEncode::to_sql_value(v))))
+  self.cmp(BinOp::Gte, v)
 }
 
 ///|
 pub fn[T : SqlEncode + SqlOrd] Expr::lt(self : Expr[T], v : T) -> Expr[Bool] {
-  Expr(Bin(BinOp::Lt, self.raw(), Lit(SqlEncode::to_sql_value(v))))
+  self.cmp(BinOp::Lt, v)
 }
 
 ///|
 pub fn[T : SqlEncode + SqlOrd] Expr::lte(self : Expr[T], v : T) -> Expr[Bool] {
-  Expr(Bin(BinOp::Lte, self.raw(), Lit(SqlEncode::to_sql_value(v))))
+  self.cmp(BinOp::Lte, v)
 }
 
 ///|
+/// Compare two expressions, as in a join condition.
 pub fn[T] Expr::eq_col(self : Expr[T], other : Expr[T]) -> Expr[Bool] {
   Expr(Bin(BinOp::Eq, self.raw(), other.raw()))
 }
@@ -124,8 +150,6 @@ pub fn[T] Expr::is_some(self : Expr[T?]) -> Expr[Bool] {
   Expr(Unary("IS NOT NULL", self.raw()))
 }
 
-// logical combinations
-
 ///|
 pub impl BitAnd for Expr[Bool] with fn land(self, other) {
   Expr(Bin(BinOp::And, self.raw(), other.raw()))
@@ -136,7 +160,7 @@ pub impl BitOr for Expr[Bool] with fn lor(self, other) {
   Expr(Bin(BinOp::Or, self.raw(), other.raw()))
 }
 
-// aggregates, order
+// Ordering.
 
 ///|
 pub(all) enum Dir {
@@ -153,6 +177,7 @@ pub impl Show for Dir with fn to_string(self) -> String {
 }
 
 ///|
+/// One key of an ORDER BY clause.
 pub struct OrderKey {
   expr : RawExpr
   dir : Dir
@@ -172,14 +197,7 @@ pub fn[T : SqlOrd] Expr::desc(self : Expr[T]) -> OrderKey {
 //
 // A column is the overwhelmingly common left-hand side of a comparison, so it
 // gets the operators directly rather than making every call site lift it with
-// `expr()` first. The two types stay separate because `Column` also carries a
-// name, which `sel`, `Binding` and `Update::set` need and a general expression
-// cannot supply.
-
-///|
-pub fn[T] Column::raw(self : Column[T]) -> RawExpr {
-  self.expr().raw()
-}
+// `expr()` first. Each one is the `Expr` operator with the column lifted.
 
 ///|
 pub fn[T : SqlEncode] Column::eq(self : Column[T], v : T) -> Expr[Bool] {

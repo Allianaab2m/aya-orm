@@ -43,20 +43,6 @@ pub fn[C, R] insert_except(
 }
 
 ///|
-pub(all) suberror StatementError {
-  /// An INSERT was built with no rows, which has no valid SQL form.
-  EmptyInsert(table~ : String)
-  /// A row supplied a different number of values than the binding has columns.
-  ArityMismatch(table~ : String, expected~ : Int, got~ : Int)
-  /// An UPDATE was built without any assignment.
-  EmptyUpdate(table~ : String)
-  /// Two tables in one query claim the same alias, so column references in the
-  /// generated SQL would be ambiguous. Self-joins need distinct aliases, which
-  /// cairn cannot yet assign (see `Table` docs).
-  DuplicateAlias(tbl~ : String)
-} derive(Debug)
-
-///|
 pub fn Insert::to_sql(
   self : Insert,
   dialect? : Dialect = Dialect::Sqlite,
@@ -64,7 +50,7 @@ pub fn Insert::to_sql(
   guard self.rows.length() > 0 else { raise EmptyInsert(table=self.table_name) }
   let em = Emitter::new(dialect)
   let buf = StringBuilder::new()
-  let cols = join(self.columns.map(c => "\"\{c}\""), ", ")
+  let cols = self.columns.map(c => "\"\{c}\"").join(", ")
   buf.write_string("INSERT INTO \"\{self.table_name}\" (\{cols})")
   let tuples = []
   for row in self.rows {
@@ -75,8 +61,8 @@ pub fn Insert::to_sql(
         got=row.length(),
       )
     }
-    tuples.push("(" + join(row.map(v => em.param(v)), ", ") + ")")
+    tuples.push("(" + row.map(v => em.param(v)).join(", ") + ")")
   }
-  buf.write_string("\n VALUES " + join(tuples, ", "))
+  buf.write_string("\n VALUES " + tuples.join(", "))
   (buf.to_string(), em.params)
 }
