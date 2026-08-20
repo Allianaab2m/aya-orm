@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+# Nothing is granted by default; each job asks for what it needs.
+permissions: {}
+
+# A branch only needs the run for its newest commit; supersede the rest.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up MoonBit
+        run: |
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
+
+      - name: Update the registry index
+        run: moon update
+
+      # The suite is self-contained: the sqlite driver vendors its own engine,
+      # and the postgres tests only cover the codec either side of the wire.
+      # Nothing here wants a service container.
+      #
+      # `moon test` builds for `preferred_target = "native"`, which is the only
+      # target the whole dependency graph compiles on.
+      - name: Test
+        run: moon test
