@@ -1,6 +1,6 @@
 ///|
 /// The entity is the only hand-written schema definition; `entities.g.mbt` is
-/// produced from it by `cairn-gen` during pre-build.
+/// produced from it by `cairn-kit codegen`.
 ///
 /// `pub(all)` matters: callers outside this package build `User` values to
 /// hand to `insert`, and a plain `pub` struct is read-only to them.
