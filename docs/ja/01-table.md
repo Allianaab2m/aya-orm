@@ -157,13 +157,16 @@ pub(all) struct User {
 | `#cairn.column` | `name=` | フィールド名 | データベース上の列名 |
 
 未知の属性名は意図的に無視します。あとから属性を追加しても古いジェネレータを
-壊さないためです。
+壊さないためです。`#cairn.column` と `#cairn.index` には、生成される MoonBit では
+なく格納のされ方を指定する引数（SQL 型・既定値・制約・外部キー）もあります。
+それらは[スキーマとマイグレーション](08-schema.md)にまとめてあります。
 
 `pub(all)` であることが重要です。呼び出し側は `insert` に渡す値を組み立てるので、
 ただの `pub` 構造体では読み取り専用になってしまいます。
 
 ```bash
-moon run src/gen/cmd -- src/app/entities.mbt -o src/app/entities.g.mbt
+cairn-kit codegen                                   # cairn.json のエンティティ全部
+cairn-kit codegen src/app/entities.mbt -o src/app/entities.g.mbt   # 1 ファイルだけ
 ```
 
 | 生成されるもの | 型 |
@@ -179,7 +182,7 @@ moon run src/gen/cmd -- src/app/entities.mbt -o src/app/entities.g.mbt
 出力はふつうの MoonBit ソースです。読めて、diff が取れて、他のコードと同じように
 コンパイラに検査されます。
 
-利用側では `moon.pkg` の `pre-build` フックからビルド済みの `cairn-gen` を呼べます。
+利用側では `moon.pkg` の `pre-build` フックからビルド済みの `cairn-kit` を呼べます。
 **同一モジュール内で `moon run` するフックは無限に再帰する**ので、このリポジトリの
 例は明示的に生成しています。
 

@@ -159,13 +159,17 @@ pub(all) struct User {
 | `#cairn.column` | `name=` | field name | column name in the database |
 
 Unknown attribute names are ignored on purpose, so adding one later will not
-break an older generator.
+break an older generator. `#cairn.column` and `#cairn.index` take further
+arguments that describe storage rather than the generated MoonBit — SQL types,
+defaults, constraints, foreign keys — collected in
+[Schema and migrations](08-schema.md).
 
 `pub(all)` matters: callers build values to hand to `insert`, and a plain `pub`
 struct is read-only to them.
 
 ```bash
-moon run src/gen/cmd -- src/app/entities.mbt -o src/app/entities.g.mbt
+cairn-kit codegen                                   # every entity file in cairn.json
+cairn-kit codegen src/app/entities.mbt -o src/app/entities.g.mbt   # one file
 ```
 
 | Generated | Type |
@@ -181,7 +185,7 @@ moon run src/gen/cmd -- src/app/entities.mbt -o src/app/entities.g.mbt
 The output is ordinary MoonBit source: readable, diffable, and checked by the
 compiler like anything else.
 
-Downstream, a `pre-build` hook in `moon.pkg` can call a prebuilt `cairn-gen`.
+Downstream, a `pre-build` hook in `moon.pkg` can call a prebuilt `cairn-kit`.
 **A hook that runs `moon run` inside the same module recurses forever**, so the
 examples in this repository are generated explicitly.
 

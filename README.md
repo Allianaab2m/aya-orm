@@ -45,6 +45,8 @@ come back.
   recording fake ship in `src/driver`.
 - **Generated, not reflected.** The generator emits ordinary MoonBit source you
   can read and diff. Nothing is discovered at runtime.
+- **The schema comes from the same source.** `cairn-kit` diffs your entities
+  against the last snapshot and writes the migration — no connection needed.
 
 ## Install
 
@@ -81,11 +83,13 @@ pub(all) struct User {
 **2. Generate.**
 
 ```bash
-moon run src/gen/cmd -- src/app/entities.mbt -o src/app/entities.g.mbt
+cairn-kit codegen
 ```
 
 You get `UserCols`, `User::cols()`, `User::all()`, `User::binding()`,
 `User::table()`, `User::table_of()` and `User::primary_key_name()`.
+`cairn-kit generate` turns the same annotations into the table itself — see
+[Schema and migrations](docs/08-schema.md).
 
 **3. Query, and run it.**
 
@@ -179,18 +183,22 @@ exists only to keep comparisons honest.
 | [5. Aggregation](docs/05-aggregate.md) | `Reducer`, `reduce`, `group_by` |
 | [6. Execution](docs/06-execution.md) | `Executor`, `Driver`, `Tx`, transactions, drivers |
 | [7. Repository](docs/07-repository.md) | the pattern cairn is designed to sit under |
-| [8. Design notes](docs/08-design.md) | why the types are shaped this way, and what is missing |
+| [8. Schema and migrations](docs/08-schema.md) | DDL from the same annotations, and `cairn-kit` |
+| [9. Design notes](docs/09-design.md) | why the types are shaped this way, and what is missing |
 
 ## Package layout
 
 ```
 src/sql/            core library — expressions, projection, query, DML, emission
-src/gen/            code generator — attributes to IR to output
-src/gen/cmd/        the CLI (cairn-gen)
+src/gen/            entity parsing — attributes to IR — and column-handle emission
+src/ddl/            IR to snapshot, diff, and DDL
+src/kit/            config and migration planning, all of it pure
+src/kit/cmd/        the CLI (cairn-kit)
 src/driver/sqlite/  SQLite driver
 src/driver/postgres/PostgreSQL driver
 src/driver/fake/    recording fake, for testing repositories
 src/example/        two worked entities: a plain one and a row-vs-domain one
+migrations/         the migrations generated from src/example
 ```
 
 ## Development

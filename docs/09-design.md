@@ -1,6 +1,6 @@
-# 8. Design notes
+# 9. Design notes
 
-[← Repository](07-repository.md) · [README](../README.md)
+[← Schema](08-schema.md) · [README](../README.md)
 
 Why the types are shaped the way they are, what is deliberately absent, and
 what is simply not built yet.
@@ -99,8 +99,12 @@ exist so that the unfiltered case is visible at the call site by name.
   so `Table` would need to hold `cols` as `(String) -> Cols`
 - **A security type parameter** — `Table[Sec, Cols, R]`, matching Acadia's
   `Table Unrestricted Food`. The `#cairn.table(security=...)` slot is reserved
-- **Indexes, constraints, migrations** — unknown attribute names are ignored on
-  purpose, so adding these later will not break an older generator
+- **PostgreSQL DDL** — the type table is there, but `generate` emits SQLite.
+  Postgres needs less work than SQLite did, since its `ALTER TABLE` is honest
+- **Applying migrations** — no `migrate` subcommand runs the `.sql` files
+  through an `Executor` yet
+- **Composite primary keys and multi-column unique constraints** — `#cairn.id`
+  marks one column
 - **Subqueries and CTEs** — `RawExpr` has no constructor for a nested SELECT
 - **`RETURNING`** — DML reports a row count and nothing else
 
@@ -132,4 +136,4 @@ pipeline is testable without touching the filesystem.
 
 ---
 
-[← Repository](07-repository.md) · [README](../README.md)
+[← Schema](08-schema.md) · [README](../README.md)
