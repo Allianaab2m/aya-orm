@@ -1,0 +1,21 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Allianaab2m/cairn/kit/cmd"
+
+// Values
+
+// Errors
+pub(all) suberror CliError {
+  MissingValue(flag~ : String)
+  UnknownFlag(flag~ : String)
+  UnknownCommand(name~ : String)
+  BadUsage(reason~ : String)
+  NotFound(path~ : String)
+}
+pub impl Show for CliError
+
+// Types and methods
+type Options
+
+// Type aliases
+
+// Traits

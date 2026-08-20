@@ -1,0 +1,103 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Allianaab2m/cairn/ddl"
+
+import {
+  "Allianaab2m/cairn/gen",
+  "Allianaab2m/cairn/sql",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub const BREAKPOINT : String = "--> statement-breakpoint"
+
+pub const SNAPSHOT_VERSION : String = "1"
+
+pub fn auto_name(Array[Change]) -> String
+
+pub fn creation_order(Array[TableDef]) -> Array[TableDef]
+
+pub fn dialect_name(@sql.Dialect) -> String
+
+pub fn dialect_of_name(String) -> @sql.Dialect raise DdlError
+
+pub fn diff(Snapshot, Snapshot) -> Array[Change]
+
+pub fn ident(String) -> String
+
+pub fn infer_sql_type(String, @sql.Dialect) -> String?
+
+pub fn migration_sql(Array[String]) -> String
+
+pub fn snapshot_of(Array[@gen.EntitySpec], dialect~ : @sql.Dialect) -> Snapshot raise DdlError
+
+pub fn split_migration(String) -> Array[String]
+
+pub fn statements(Snapshot, Snapshot) -> Array[String] raise DdlError
+
+// Errors
+pub(all) suberror DdlError {
+  DuplicateTable(table~ : String)
+  UnknownColumnType(table~ : String, column~ : String, ty~ : String)
+  UnsupportedDialect(dialect~ : String, reason~ : String)
+  UnsafeChange(table~ : String, reason~ : String)
+  BadSnapshot(reason~ : String)
+} derive(@debug.Debug)
+pub impl Show for DdlError
+
+// Types and methods
+pub(all) enum Change {
+  CreateTable(TableDef)
+  DropTable(String)
+  AddColumn(table~ : String, column~ : ColumnDef)
+  DropColumn(table~ : String, column~ : String)
+  AlterColumn(table~ : String, before~ : ColumnDef, after~ : ColumnDef)
+  CreateIndex(table~ : String, index~ : IndexDef)
+  DropIndex(table~ : String, index~ : String)
+} derive(Eq, @debug.Debug)
+pub fn Change::summary(Self) -> String
+
+pub struct ColumnDef {
+  name : String
+  ty : String
+  not_null : Bool
+  primary_key : Bool
+  autoincrement : Bool
+  unique : Bool
+  default_sql : String?
+  references : ForeignKey?
+} derive(Eq, @debug.Debug)
+
+pub struct ForeignKey {
+  table : String
+  column : String
+  on_delete : String?
+  on_update : String?
+} derive(Eq, @debug.Debug)
+
+pub struct IndexDef {
+  name : String
+  columns : Array[String]
+  unique : Bool
+} derive(Eq, @debug.Debug)
+
+pub struct Snapshot {
+  version : String
+  dialect : @sql.Dialect
+  tables : Array[TableDef]
+} derive(Eq, @debug.Debug)
+pub fn Snapshot::empty(@sql.Dialect) -> Self
+pub fn Snapshot::from_json_string(String) -> Self raise DdlError
+pub fn Snapshot::table(Self, String) -> TableDef?
+pub fn Snapshot::to_json_string(Self) -> String
+
+pub struct TableDef {
+  name : String
+  columns : Array[ColumnDef]
+  indexes : Array[IndexDef]
+} derive(Eq, @debug.Debug)
+pub fn TableDef::column(Self, String) -> ColumnDef?
+pub fn TableDef::index(Self, String) -> IndexDef?
+
+// Type aliases
+
+// Traits

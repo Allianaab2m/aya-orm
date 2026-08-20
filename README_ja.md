@@ -43,6 +43,8 @@ alice (30)・bob (17)・carol (42)・論理削除済みの dave (25) を持つ `
   フェイクを `src/driver` に同梱しています。
 - **リフレクションではなく生成。** ジェネレータが吐くのは読めて diff の取れる
   ふつうの MoonBit ソースです。実行時に何かを探索することはありません。
+- **スキーマも同じ定義から。** `cairn-kit` がエンティティと直前のスナップショットを
+  比較してマイグレーションを書きます。データベースへの接続は要りません。
 
 ## 導入
 
@@ -80,11 +82,12 @@ pub(all) struct User {
 **2. 生成する。**
 
 ```bash
-moon run src/gen/cmd -- src/app/entities.mbt -o src/app/entities.g.mbt
+cairn-kit codegen
 ```
 
 `UserCols`, `User::cols()`, `User::all()`, `User::binding()`, `User::table()`,
 `User::table_of()`, `User::primary_key_name()` が手に入ります。
+同じ注釈からテーブルそのものも出せます。[スキーマとマイグレーション](docs/ja/08-schema.md)を参照してください。
 
 **3. クエリを組み立てて実行する。**
 
@@ -178,18 +181,22 @@ classDiagram
 | [5. 集約](docs/ja/05-aggregate.md) | `Reducer` / `reduce` / `group_by` |
 | [6. 実行](docs/ja/06-execution.md) | `Executor` / `Driver` / `Tx`、トランザクション、ドライバ |
 | [7. Repository](docs/ja/07-repository.md) | cairn が下敷きになることを想定したパターン |
-| [8. 設計ノート](docs/ja/08-design.md) | なぜこの型なのか、何が足りないのか |
+| [8. スキーマとマイグレーション](docs/ja/08-schema.md) | 同じ注釈から DDL を出す `cairn-kit` |
+| [9. 設計ノート](docs/ja/09-design.md) | なぜこの型なのか、何が足りないのか |
 
 ## パッケージ構成
 
 ```
 src/sql/            コアライブラリ — 式・射影・クエリ・DML・SQL 生成
-src/gen/            ジェネレータ — 属性から IR、IR から出力へ
-src/gen/cmd/        CLI (cairn-gen)
+src/gen/            エンティティ解析 — 属性から IR — とカラムハンドル生成
+src/ddl/            IR からスナップショット・差分・DDL へ
+src/kit/            設定とマイグレーション計画（すべて純粋）
+src/kit/cmd/        CLI (cairn-kit)
 src/driver/sqlite/  SQLite ドライバ
 src/driver/postgres/PostgreSQL ドライバ
 src/driver/fake/    記録用フェイク。Repository のテスト向け
 src/example/        例題エンティティ 2 つ。素直な例と、行型・ドメイン型が食い違う例
+migrations/         src/example から生成したマイグレーション
 ```
 
 ## 開発

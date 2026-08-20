@@ -1,12 +1,12 @@
 # 7. The Repository pattern
 
-[← Execution](06-execution.md) · [Design notes →](08-design.md)
+[← Execution](06-execution.md) · [Schema →](08-schema.md)
 
 cairn provides nothing for this. A repository is ordinary application code, and
 this chapter is about the shape that code takes when cairn is underneath it.
 
 > The code here is illustrative rather than lifted from `src/example`, which
-> keeps only two entities. See [design notes](08-design.md) for why.
+> keeps only two entities. See [design notes](09-design.md) for why.
 
 ## The shape falls out of MoonBit's traits
 
@@ -180,4 +180,4 @@ db.log  // ["BEGIN", "QUERY", "EXEC", "COMMIT"]
 
 ---
 
-[← Execution](06-execution.md) · [Design notes →](08-design.md)
+[← Execution](06-execution.md) · [Schema →](08-schema.md)

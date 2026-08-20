@@ -209,7 +209,7 @@ pub fn[Out] Selection::optional_on(Selection[Out], key~ : Int) -> Selection[Out?
 `Query::to_sql` はそういう SQL を吐く代わりに `DuplicateAlias(tbl~)` を送出します。
 
 エイリアスはクエリごとではなくテーブルごとに固定（`#cairn.table(alias="u")`）です。
-**自己結合がまだ書けない**のはそのためで、[設計ノート](08-design.md)を参照してください。
+**自己結合がまだ書けない**のはそのためで、[設計ノート](09-design.md)を参照してください。
 
 ---
 

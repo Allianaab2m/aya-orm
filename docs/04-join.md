@@ -214,7 +214,7 @@ refers to whichever one the database picks. `Query::to_sql` raises
 
 Aliases are fixed per table (`#cairn.table(alias="u")`), not assigned per
 query, which is why **self-joins are not expressible yet** — see
-[design notes](08-design.md).
+[design notes](09-design.md).
 
 ---
 

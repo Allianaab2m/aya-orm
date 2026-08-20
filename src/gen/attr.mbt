@@ -46,34 +46,92 @@ const NAMESPACE = "cairn"
 ///|
 /// Parse `k="v", k2="v2"` into a map.
 ///
-/// Values must be quoted; MoonBit accepts arbitrary token soup inside an
-/// attribute, but everything cairn needs is a string literal, so anything else
-/// is rejected loudly rather than silently dropped.
+/// Scanned character by character rather than split on commas, because the
+/// values that matter most here are SQL fragments: `default="coalesce(a, b)"`
+/// has a comma inside the quotes, and splitting on it would lose half the
+/// expression without saying so.
 fn parse_args(
   inner : StringView,
   raw : String,
 ) -> Map[String, String] raise AttrError {
   let args = Map([])
-  for part in inner.split(",") {
-    let piece = part.trim()
-    if piece.is_empty() {
-      continue
+  let cs = []
+  for c in inner {
+    cs.push(c)
+  }
+  let n = cs.length()
+  let mut i = 0
+  fn skip_spaces() {
+    while i < n && cs[i].is_whitespace() {
+      i = i + 1
     }
-    let eq = match piece.find("=") {
-      Some(i) => i
-      None =>
-        raise Malformed(raw~, reason="expected `key=\"value\"` in `\{piece}`")
+  }
+
+  while i < n {
+    skip_spaces()
+    if i >= n {
+      break
     }
-    let key = piece[:eq].trim().to_owned()
-    let value = piece[eq + 1:].trim()
-    guard value.length() >= 2 &&
-      value.has_prefix("\"") &&
-      value.has_suffix("\"") else {
+    let key_start = i
+    while i < n && cs[i] != '=' && !cs[i].is_whitespace() {
+      i = i + 1
+    }
+    let key = take(cs, key_start, i)
+    if key.is_empty() {
+      raise Malformed(raw~, reason="expected an argument name")
+    }
+    skip_spaces()
+    guard i < n && cs[i] == '=' else {
+      raise Malformed(raw~, reason="expected `=` after `\{key}`")
+    }
+    i = i + 1
+    skip_spaces()
+    guard i < n && cs[i] == '"' else {
       raise Malformed(raw~, reason="value of `\{key}` must be a quoted string")
     }
-    args[key] = value[1:value.length() - 1].to_owned()
+    i = i + 1
+    let value = StringBuilder::new()
+    let mut closed = false
+    while i < n {
+      let c = cs[i]
+      if c == '"' {
+        closed = true
+        i = i + 1
+        break
+      }
+      // A backslash escape is passed through with its backslash removed, so
+      // `default="\"n/a\""` reaches the emitter as `"n/a"`.
+      if c == '\\' && i + 1 < n {
+        value.write_char(cs[i + 1])
+        i = i + 2
+      } else {
+        value.write_char(c)
+        i = i + 1
+      }
+    }
+    guard closed else {
+      raise Malformed(raw~, reason="unterminated value for `\{key}`")
+    }
+    args[key] = value.to_string()
+    skip_spaces()
+    if i < n {
+      guard cs[i] == ',' else {
+        raise Malformed(raw~, reason="expected `,` after `\{key}`")
+      }
+      i = i + 1
+    }
   }
   args
+}
+
+///|
+/// The characters in `[start, end)` as a string.
+fn take(cs : Array[Char], start : Int, end : Int) -> String {
+  let buf = StringBuilder::new()
+  for i in start..<end {
+    buf.write_char(cs[i])
+  }
+  buf.to_string()
 }
 
 ///|

@@ -1,6 +1,6 @@
-# 8. 設計ノート
+# 9. 設計ノート
 
-[← Repository](07-repository.md) · [README](../../README_ja.md)
+[← スキーマ](08-schema.md) · [README](../../README_ja.md)
 
 なぜ型がこの形なのか、何を意図的に置いていないのか、そして単にまだ作っていないのは
 何か。
@@ -97,8 +97,10 @@ API のほとんどはこのどれかに従っています。
   `Table` は `cols` を `(String) -> Cols` として持つ必要がある
 - **セキュリティ型引数** — `Table[Sec, Cols, R]`。Acadia の `Table Unrestricted Food`
   に相当。`#cairn.table(security=...)` の枠は予約済み
-- **インデックス・制約・マイグレーション** — 未知の属性名を意図的に無視しているので、
-  あとから追加しても古いジェネレータを壊さない
+- **PostgreSQL の DDL 出力** — 型対応表はあるが `generate` は SQLite 向け。
+  `ALTER TABLE` が素直な分、SQLite より書く量は少ない
+- **マイグレーションの適用** — `.sql` を `Executor` で流す `migrate` サブコマンドがない
+- **複合主キーと複数列のユニーク制約** — `#cairn.id` は 1 列だけを指す
 - **サブクエリと CTE** — `RawExpr` にネストした SELECT のコンストラクタがない
 - **`RETURNING`** — DML は行数しか返さない
 
@@ -131,4 +133,4 @@ API のほとんどはこのどれかに従っています。
 
 ---
 
-[← Repository](07-repository.md) · [README](../../README_ja.md)
+[← スキーマ](08-schema.md) · [README](../../README_ja.md)

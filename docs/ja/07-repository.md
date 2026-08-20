@@ -1,12 +1,12 @@
 # 7. Repository パターン
 
-[← 実行](06-execution.md) · [設計ノート →](08-design.md)
+[← 実行](06-execution.md) · [スキーマ →](08-schema.md)
 
 これについて cairn は何も提供しません。Repository はふつうのアプリケーションコード
 です。この章は、その下に cairn を敷いたときにそのコードが取る形についての話です。
 
 > ここのコードは `src/example` から抜き出したものではなく説明用です。例題は
-> エンティティ 2 つだけに絞ってあります。理由は[設計ノート](08-design.md)を
+> エンティティ 2 つだけに絞ってあります。理由は[設計ノート](09-design.md)を
 > 参照してください。
 
 ## 形は MoonBit のトレイトが決める
@@ -179,4 +179,4 @@ db.log  // ["BEGIN", "QUERY", "EXEC", "COMMIT"]
 
 ---
 
-[← 実行](06-execution.md) · [設計ノート →](08-design.md)
+[← 実行](06-execution.md) · [スキーマ →](08-schema.md)

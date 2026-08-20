@@ -14,6 +14,8 @@ pub fn emit_entity(EntitySpec) -> String
 
 pub fn emit_file(Array[EntitySpec]) -> String
 
+pub fn entities_of(String, name? : String) -> Array[EntitySpec] raise
+
 pub fn generate(String, name? : String) -> String raise
 
 pub fn parse_attr(String) -> Attr? raise AttrError
@@ -29,7 +31,12 @@ pub(all) suberror EntityError {
   NotARecord(type_name~ : String)
   MissingTable(type_name~ : String)
   DuplicatePrimaryKey(type_name~ : String)
+  InvalidArg(type_name~ : String, key~ : String, value~ : String)
+  UnknownIndexColumn(type_name~ : String, column~ : String)
+  EmptyIndex(type_name~ : String)
+  ReservedArg(type_name~ : String, key~ : String, use_instead~ : String)
 } derive(@debug.Debug)
+pub impl Show for EntityError
 
 pub(all) suberror GenError {
   ParseFailed(name~ : String, diagnostics~ : Int)
@@ -48,6 +55,7 @@ pub struct EntitySpec {
   tbl : String
   cols_name : String
   fields : Array[FieldSpec]
+  indexes : Array[IndexSpec]
 } derive(Eq, @debug.Debug)
 
 pub struct FieldSpec {
@@ -55,6 +63,25 @@ pub struct FieldSpec {
   ty : String
   column : String
   is_primary : Bool
+  nullable : Bool
+  sql_type : String?
+  default_sql : String?
+  unique : Bool
+  autoincrement : Bool
+  references : RefSpec?
+} derive(Eq, @debug.Debug)
+
+pub struct IndexSpec {
+  name : String
+  columns : Array[String]
+  unique : Bool
+} derive(Eq, @debug.Debug)
+
+pub struct RefSpec {
+  table : String
+  column : String
+  on_delete : String?
+  on_update : String?
 } derive(Eq, @debug.Debug)
 
 // Type aliases
