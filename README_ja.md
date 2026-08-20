@@ -10,7 +10,8 @@ A thin, type-safe SQL toolkit for MoonBit.
 [Acadia](https://acadia.engineering/) を参考にしています。
 
 実行は `Driver` トレイトを実装した任意のバインディングに委ねます。cairn 自体は
-どのデータベースにも依存しません。
+どのデータベースにも依存しません。実装側のドライバは `src/driver` 以下に
+1 パッケージずつ置いてあり、クエリビルダがバインディングを見ることはありません。
 
 ## 型の変遷
 
@@ -23,6 +24,11 @@ flowchart LR
     S4 --> S5["⑤ 行型 / ドメイン型の分離"]
     S5 --> S6["⑥ 外部結合の nullability"]
     S6 --> S7["⑦ 実行層"]
+    S7 --> S8["⑧ 結合列の命名"]
+    S8 --> S9["⑨ 集約"]
+    S9 --> S10["⑩ 実ドライバ"]
+    S10 --> S11["⑪ 型付きの行"]
+    S11 --> S12["⑫ ネストしたトランザクション"]
 
     S0 -.- D0["Table が decoder を持つ<br/>row.get(name)"]
     S1 -.- D1["Selection 導入<br/>射影とデコーダを一体化"]
@@ -32,9 +38,14 @@ flowchart LR
     S5 -.- D5["Binding::contramap<br/>table_of で継ぎ目を明示"]
     S6 -.- D6["抽象型 Nullable<br/>col / row でしか触れない"]
     S7 -.- D7["Driver トレイト<br/>transaction コンビネータ"]
+    S8 -.- D8["split2 で分解<br/>map_cols で命名"]
+    S9 -.- D9["Reducer は集約式しか持てない<br/>zip で 1 パス"]
+    S10 -.- D10["Driver を async 化<br/>ドライバを src/driver へ"]
+    S11 -.- D11["RowShape::Typed<br/>列ごとに typeof(e), e"]
+    S12 -.- D12["Driver を Executor と Driver に分割<br/>Tx が深度を数える"]
 
     classDef note fill:#f6f8fa,stroke:#d0d7de,color:#24292f
-    class D0,D1,D2,D3,D4,D5,D6,D7 note
+    class D0,D1,D2,D3,D4,D5,D6,D7,D8,D9,D10,D11,D12 note
 ```
 
 各段階で `Table` と `Query` の形がどう変わったかです。
@@ -49,6 +60,11 @@ flowchart LR
 | ⑤ | `Binding::contramap` を追加、生成器が `table_of` を吐く。属性は `#cairn.table` へ | 行型とドメイン型は別物で、対応づけはプログラマが書く |
 | ⑥ | `left_join` が抽象型 `Nullable[C, R]` を返す。`Selection::optional` を追加 | 外部結合の nullability を型で強制する |
 | ⑦ | `Driver` トレイトと `transaction`、各文に `run` / `one` / `first` | SQL を組み立てるだけでなく走らせる |
+| ⑧ | `split2` と `Query::map_cols` を追加 | MoonBit に無いラムダ引数分解を API で埋める |
+| ⑨ | `Reducer[Out]` と `Query::reduce` / `group_by` | 不正な集約クエリを書けなくする |
+| ⑩ | `Driver` と `run` / `one` / `first` / `transaction` を `async` 化し、ドライバを `src/driver` へ | MoonBit の PostgreSQL クライアントが async で、同期トレイトでは載せられない |
+| ⑪ | `Driver` に `RowShape`、`query` に `columns~` | SQLite バインディングが結果列の型も NULL かどうかも返さず、推測すると静かな誤答になる |
+| ⑫ | `Driver` を `Executor` と `Driver : Executor` に分割し、`Tx[D]` を追加。`transaction` は `Tx` を取る | 各自でトランザクションを張る 2 つのリポジトリが `BEGIN` を二重に送ってはいけない。また本体が commit できる必然性は無い |
 
 ### ① なぜ `Selection` なのか
 
@@ -317,7 +333,32 @@ SELECT u."name", p."title"
 
 `join` は `Query[C1, A]` と `Table[C2, R2]` から `Query[(C1, C2), A]` を作ります。
 `Cols` がタプルになるので、以降は `.0` / `.1` で各テーブルの列に届きます。
-3 本目は `((C1, C2), C3)` と入れ子になります。
+
+結合結果がタプルなのは Acadia も同じです（`intersect : … -> Rows (a, b)`）。違うのは
+Elm がラムダ引数を `\((a, b), c) -> …` と分解できる点で、**MoonBit にはその構文が
+ありません**。cairn はそこを 2 つの道具で埋めます。
+
+**2 テーブルなら `split2`。** N 引数の関数を、コンビネータが期待する 1 引数関数に
+変換します。`.0` は cairn の中だけに存在し、利用側には出ません。
+
+```moonbit
+|> @sql.Query::filter(@sql.split2((u, p) => u.age.gte(18) & p.title.ne("draft")))
+|> @sql.Query::map(@sql.split2((_u, p) => @sql.sel(p.title)))
+```
+
+**3 テーブル以上なら `map_cols` で名前を付ける。** 引数が `(_, a, _)` のような位置
+プレースホルダを要求しはじめる時点で、分解より命名のほうが読めます。
+
+```moonbit
+|> @sql.Query::map_cols(c => { ticket: c.0.0, assignment: c.0.1, closure: c.1 })
+|> @sql.Query::filter(j => j.ticket.id.eq(id))
+```
+
+構造体を作りたくなければ `typealias` でシグネチャだけ読みやすくもできます。
+
+```moonbit
+pub typealias ((UserCols, PostCols), TagCols) as UserPostTag
+```
 
 複数テーブルから 1 つのドメイン値を組み立てる場合も同じ道具立てで、
 `Query::map(c => ...)` が返す `Selection[D]` にドメイン型を書きます。
@@ -353,23 +394,125 @@ c.1.row()               // Selection[Post?] ── 行ごと欲しいとき
 
 ## 実行
 
-### ドライバ
+### Executor とドライバ
 
 cairn が実際のデータベースに求めるのは、SQL 文と順序付きパラメータを受け取って動かす
-ことだけです。
+ことだけです。それが `Executor` で、文を走らせるのに要るのはこれだけです。
 
 ```moonbit
-pub(open) trait Driver {
-  query(Self, String, Array[SqlValue]) -> Array[Array[SqlValue]] raise DbError
-  execute(Self, String, Array[SqlValue]) -> Int raise DbError
+pub(open) trait Executor {
+  async query(Self, String, Array[SqlValue], columns~ : Int) -> Array[Array[SqlValue]] raise DbError
+  async execute(Self, String, Array[SqlValue]) -> Int raise DbError
   dialect(Self) -> Dialect
-  begin(Self) -> Unit raise DbError
-  commit(Self) -> Unit raise DbError
-  rollback(Self) -> Unit raise DbError
+  row_shape(Self) -> RowShape = _   // 既定は Plain
 }
 ```
 
+トランザクションを括るのは別の能力で、ドライバは「それも持つ `Executor`」です。
+
+```moonbit
+pub(open) trait Driver : Executor {
+  async begin(Self) -> Unit raise DbError
+  async commit(Self) -> Unit raise DbError
+  async rollback(Self) -> Unit raise DbError
+}
+```
+
+**この分割が肝です。** `run` / `one` / `first` の境界は `Executor` で、cairn が
+トランザクション本体に渡すものも `Executor` でしかありません。つまり
+**トランザクションの中で走るコードは、自分が入っているトランザクションを
+commit も rollback もできません**。この 3 文を送るのは `Tx` だけです。
+
+**なぜ `async` なのか。** MoonBit で使える SQL クライアントは 2 つあり、片方は同期、
+もう片方は非同期です。MoonBit に asyncness の多相はなく、`async` 関数は `async` 関数
+からしか呼べません。同期トレイトでは非同期クライアントを載せられませんが、非同期トレイト
+なら両方載ります。同期ドライバは `async` メソッドを普通の `fn` で実装できるからです
+（中断しない本体も本体として妥当です）。そのため `Driver` と `run` / `one` / `first` /
+`transaction` は `async` であり、呼ぶ側には `async fn main` か `async test` が要ります。
+
+`async` 自体は全バックエンドでコンパイルできるので、クエリビルダは可搬なままです。
+native 限定なのは 2 つのクライアントライブラリと、その下の `moonbitlang/async` です。
+
 ドライバがそのまま接続です。コネクションプールを被せるならこの外側になります。
+
+### 同梱ドライバ
+
+| パッケージ | 土台のライブラリ | ターゲット |
+|---|---|---|
+| `@fake`（`src/driver/fake`） | なし。文を記録し、あらかじめ与えた行を返す | native |
+| `@postgres`（`src/driver/postgres`） | [`moonbit-community/postgres`](https://github.com/moonbit-community/postgres.mbt) | native |
+| `@sqlite`（`src/driver/sqlite`） | [`moonbit-community/sqlite3`](https://github.com/moonbit-community/sqlite3.mbt) | native |
+
+```moonbit
+@postgres.with_connection(
+  @postgres.config(host="localhost", user="alliana", database="cairn"),
+  db => {
+    let tickets = @sql.from(TicketRow::table()).run(db)
+    ...
+  },
+)
+```
+
+`with_connection` があるのは、クライアントが接続を 2 つに分けているからです。文を通す
+`Client` と、その下でプロトコルを回す `Connection` です。後者の `run` が回っていないと
+何も進まないので、こちらで spawn します。本体がどう終わっても接続は閉じられます。
+
+ドライバの中身は、ワイヤの両側にある 2 つの変換がすべてです。送る側では
+**プレースホルダの型をサーバが決める**ので、cairn の `VInt(Int64)` は列の実際の幅で
+エンコードします。受ける側では行記述子が各列の型を教えてくれるので、対応する形の
+`SqlValue` を組み立てます。cairn のデコーダはコンストラクタでマッチするため、当て推量は
+静かな誤答になるからです。cairn に対応する形がない PostgreSQL の型（日付・タイムスタンプ・
+uuid）は推測せず名前を挙げて拒否します。`submitted_at::text` のようにクエリ側で
+キャストしてください。
+
+```moonbit
+@sqlite.with_connection(":memory:", db => {
+  let tickets = @sql.from(TicketRow::table()).run(db)
+  ...
+})
+```
+
+### なぜ `RowShape` があるのか
+
+SQLite バインディングは意図的に薄く、列に対して「何型で欲しいか」を聞かれたらそれを返す
+だけで、列の型を報告する公開 API も `NULL` を表す手段もありません。NULL の列を `Int` で
+読むと `0` が返ります。これは実在する値であり、かつ誤りです。型安全な経路の途中に静かな
+誤答が混ざることになるので、型は推測せずデータベースに聞きます。
+
+ドライバが必要な SELECT リストの形を宣言し、cairn がそれを書きます。
+
+```sql
+-- RowShape::Plain。結果行を記述できるバインディング向け
+SELECT i."id", t."tag" FROM "items" AS i LEFT JOIN "tags" AS t ON ...
+
+-- RowShape::Typed。SQLite ドライバが宣言する形
+SELECT typeof(i."id"), i."id", typeof(t."tag"), t."tag" FROM ...
+```
+
+ドライバが 2 列を 1 つの `SqlValue` に畳むので、その上の層は 2 倍の列を見ません。
+`query` に `columns~`（SELECT リストではなく射影の幅）を渡しているのはこのためです。
+各射影式は**一度だけ**レンダリングしてテキストを使い回します。二度レンダリングすると
+式の中のリテラルが二度バインドされ、以降のプレースホルダ番号がずれるからです。
+
+SQLite が返すタグは列の宣言型ではなく値のストレージクラスです。`INTEGER` と宣言された列に
+テキストが入っていればテキストとして返ります。実際に格納されているものが返る、ということです。
+
+送る側では `VNull` のパラメータを単にバインドしません。SQLite は未バインドのパラメータを
+NULL と解釈するので、このバインディングで NULL を送る唯一の方法がこれです。
+
+どちらの穴もバインディング側の小さな変更で埋まります（`internal/ffi` には
+`sqlite3_column_type` と `sqlite3_bind_null` が既にあり、公開されていないだけです）。
+上流に入れば `Typed` は不要になります。
+
+リポジトリのテストにこれらは要りません。`@fake.FakeDb` が同じトレイトを実装し、
+何を実行させられたかを記録します。
+
+```moonbit
+let db = @fake.FakeDb::new(counts=[1, 1])
+let repo = SqlTickets::new(db)
+repo.save(Open(id=1, subject="printer on fire"))
+db.log  // ["BEGIN", "QUERY", "EXEC", "COMMIT"]
+```
 
 ### 実行
 
@@ -396,6 +539,8 @@ delete.run(db)    // Int
 本体は普通の関数で、途中で `raise` できます。
 
 ```moonbit
+let db = @sql.Tx::new(driver)
+
 @sql.transaction(db, conn => {
   let removed = @sql.delete(DraftRow::table(), d => d.id.eq(2)).run(conn)
   let added = @sql.insert(SubmittedRow::table(), { id: 2, items: 1, submitted_at: at }).run(conn)
@@ -420,6 +565,111 @@ flowchart LR
 
 上の 3 つはいずれもテストで固定してあります（`["BEGIN", "EXEC", "EXEC", "COMMIT"]` /
 `["BEGIN", "EXEC", "ROLLBACK"]` / `[]`）。
+
+#### なぜドライバではなく `Tx` を取るのか
+
+`transaction` が取るのはドライバではなく `Tx[D]` です。`Tx` は「ドライバ + 数値 1 つ
+（この接続が今どれだけ深くトランザクションに入っているか）」で、これが**呼び出しの
+ネスト**を成立させます。
+
+```moonbit
+pub struct Tx[D] {
+  db : D
+  mut depth : Int        // 0 なら何も開いていない。次のスコープが BEGIN する
+  mut failure : Error?   // ネストしたスコープが失敗したなら、その原因
+}
+```
+
+`BEGIN` と `COMMIT` を送るのは最も外側のスコープだけです。内側は本体を走らせるだけ
+なので、それぞれ「自分は原子的でありたい」と主張する 2 つの操作を外から包むと、
+1 つのトランザクションに収まります。
+
+```moonbit
+@sql.transaction(db, _ => {
+  tickets.save(a)   // save は自分でトランザクションを張るが……
+  users.save(b)     // ……ここでは 2 つとも外側に参加する
+})
+// => ["BEGIN", "QUERY", "EXEC", "QUERY", "EXEC", "COMMIT"]
+```
+
+単独で呼べば、その同じ `save` が最も外側のスコープになり、自分で括ります。
+リポジトリは自分がどちらの状況にいるか知る必要がありません。トランザクションに
+まつわるものを引数で渡していないのは、そのためです。
+
+**内側のスコープだけが失敗することはできません。** 下にセーブポイントを敷いていないので、
+1 つのスコープの書き込みだけを取り消す手段が無いからです。したがってネストした失敗は
+トランザクション全体を rollback-only に落とし、本体がそれを catch して先に進んだ場合、
+最も外側のスコープは commit を拒否します。
+
+```mermaid
+flowchart LR
+    N["内側の本体が raise"] --> P["rollback-only にする<br/>原因を保持"] --> U["再送出"]
+    U -->|"外側の本体が catch して<br/>正常に返る"| X["ROLLBACK<br/>RollbackOnly(cause~) を送出"]
+    U -->|"そのまま伝播"| Y["ROLLBACK<br/>同じ例外を再送出"]
+```
+
+ここで commit すると、たまたま生き残ったほうの半分だけが書かれます。`RollbackOnly` が
+運ぶのは「誰かが握り潰した」ことではなく、**commit を不可能にした元の失敗**です。
+この汚染はトランザクションに紐づいており接続には残らないので、次のトランザクションは
+きれいな状態から始まります。
+
+`Tx` が数えているのは「1 つの接続の、1 つのコールスタック上での位置」なので、
+並行に走るタスク間で共有するのは安全ではありません。
+
+## 集約
+
+`Reducer[Out]` は「多くの行を 1 つの要約に畳む」ものです。実行時の形は `Selection` と
+同じですが、**型を意図的に分けています**。`Reducer` は集約式しか持てないので、
+グループ化していない素の列を集約と並べて射影する、という SQL が拒む書き方が
+**そもそも表現できません**。
+
+```moonbit
+count()                        // Reducer[Int]   ── 行数。0 行でも 0 が返る
+count_of(c)                    // Reducer[Int]   ── NULL でない行数
+min(c) / max(c) / sum(c)       // Reducer[T?]    ── 0 行なら None
+avg(c)                         // Reducer[Double?]
+```
+
+`min` などが `T?` で `count` が `Int` なのは SQL の挙動どおりです。`COUNT(*)` は
+0 行でも 0 を返しますが、`MIN` は NULL を返します。
+
+`sum` / `avg` は `SqlNum`、`min` / `max` は `SqlOrd` を要求します。`SqlOrd` と同じ
+マーカートレイトで、`Column[String]` を合計できないようにしているだけです。
+
+### 複数の要約を 1 パスで
+
+```moonbit
+@sql.from(users())
+|> @sql.Query::filter(u => u.deleted_at.is_none())
+|> @sql.Query::reduce(u => @sql.count().zip(@sql.min(u.age)).zip(@sql.max(u.age)))
+```
+
+```sql
+SELECT COUNT(*), MIN(u."age"), MAX(u."age")
+  FROM "users" AS u
+ WHERE u."deleted_at" IS NULL
+```
+
+Acadia はここを `map2` 〜 `map9` で提供していますが、cairn は `zip` と `map` の
+2 つで同じ範囲を覆います。アリティの梯子は要りません。
+
+### グループ化
+
+```moonbit
+@sql.from(users())
+|> @sql.Query::group_by(u => u.name, u => @sql.count().zip(@sql.avg(u.age)))
+```
+
+```sql
+SELECT u."name", COUNT(*), AVG(u."age")
+  FROM "users" AS u
+ GROUP BY u."name"
+```
+
+グループ化キーは射影に入れる**唯一の非集約**であり、それはまさにグループ化対象の列
+なので、**常に正しい集約クエリになります**。結果は `(K, S)` の組で返ります。
+
+要約 1 つなら `one`、グループごとなら `run` で実行します。
 
 ## Repository パターン
 
@@ -466,11 +716,24 @@ ticket_closures(ticket_id → ticket_assignments.ticket_id, resolution)
 `find` は 2 段 LEFT JOIN の 1 文で済みます。
 
 ```moonbit
+pub struct TicketJoin {
+  ticket : TicketCols
+  assignment : @sql.Nullable[AssignmentCols, AssignmentRow]
+  closure : @sql.Nullable[ClosureCols, ClosureRow]
+}
+
 @sql.from(TicketRow::table())
 |> @sql.Query::left_join(AssignmentRow::table(), (t, a) => t.id.eq_col(a.ticket_id))
 |> @sql.Query::left_join(ClosureRow::table(), (c, cl) => c.0.id.eq_col(cl.ticket_id))
-|> @sql.Query::map(c => TicketRow::all(c.0.0).zip(c.0.1.row()).zip(c.1.row()).map(assemble))
+|> @sql.Query::map_cols(c => { ticket: c.0.0, assignment: c.0.1, closure: c.1 })
+|> @sql.Query::map(j => TicketRow::all(j.ticket)
+  .zip(j.assignment.row())
+  .zip(j.closure.row())
+  .map(assemble))
 ```
+
+入れ子は `map_cols` の 1 行に閉じ込めます。以降は `j.assignment` であって `c.0.1`
+ではありません。
 
 **どのフェーズ行が返ったかがそのまま状態**です。判別子カラムは存在しません。
 
@@ -483,7 +746,7 @@ ticket_closures(ticket_id → ticket_assignments.ticket_id, resolution)
 ドメイン語彙のクエリも「フェーズ行が無い」で表現できます。
 
 ```moonbit
-|> @sql.Query::filter(c => c.0.1.col(a => a.ticket_id).is_none())
+|> @sql.Query::filter(j => j.assignment.col(a => a.ticket_id).is_none())
 // → WHERE ta."ticket_id" IS NULL
 ```
 
@@ -511,21 +774,33 @@ base 行は書き直されません。**集約の形とテーブルの形が出�
 
 ### トランザクションとの噛み合わせ
 
-ドライバが接続そのものなので、`transaction(self.db, conn => ...)` の `conn` は
-`self.db` と同一です。結果として**リポジトリは外側のトランザクションに自動的に参加します**。
-
-裏返しに、リポジトリは自分がトランザクション内かを知れません。複数リポジトリを 1 つの
-Unit of Work にまとめたい場合は、トランザクション内で `conn` に束ね直します。
+リポジトリが持つのはドライバではなく `Tx[D]` です。
 
 ```moonbit
-@sql.transaction(db, conn => {
-  let tickets = SqlTickets::new(conn)
-  let users = SqlUsers::new(conn)
-  ...
-})
+struct SqlTickets[D] {
+  db : @sql.Tx[D]
+}
 ```
 
-リポジトリの生成は構造体 1 個なので安価です。
+だから `save` は、他に誰かが既にトランザクションを張っているかを知らないまま、
+自分の仕事を括れます。同じ接続に対する全リポジトリには、配線時に一度だけ
+**同一の `Tx`** を渡してください。
+
+```moonbit
+let db = @sql.Tx::new(@sqlite.Sqlite::open("app.db"))
+let tickets = SqlTickets::new(db)
+let users = SqlUsers::new(db)
+
+@sql.transaction(db, _ => {
+  tickets.save(a)
+  users.save(b)
+})   // BEGIN 1 回、COMMIT 1 回
+```
+
+深度の共有こそが仕組みの全部です。同じ接続に対して別々の `Tx` を 2 つ作って渡すと、
+データベースに `BEGIN` を二重に送ることになり、SQLite はこれを明確に拒否します。
+トランザクションの中で作り直すものは何もありません — 上のリポジトリは終始同じ
+オブジェクトです。
 
 ## 安全側に倒している点
 
@@ -538,6 +813,7 @@ Unit of Work にまとめたい場合は、トランザクション内で `conn`
 | 述語なしの UPDATE / DELETE | `update_all` / `delete_all` を明示的に呼ぶ必要がある |
 | `one` が 0 件 / 2 件以上 | `NotFound` / `TooManyRows` を送出 |
 | トランザクション本体の失敗 | ROLLBACK して同じ例外を再送出 |
+| ネストした失敗を外側の本体が握り潰した | ROLLBACK して、元の原因を載せた `RollbackOnly` を送出 |
 
 ## 未実装
 
@@ -547,7 +823,6 @@ Unit of Work にまとめたい場合は、トランザクション内で `conn`
   `Table[Sec, Cols, R]`。`#cairn.entity(security=...)` のスロットは空けてある
 - **インデックス / 制約 / マイグレーション** — 属性は未知の名前を黙って無視する設計なので、
   後から足しても古い生成器を壊さない
-- **集約** — `count_sel()` はスタブ（`read` が行を無視して 0 を返す）
 
 ## 開発
 

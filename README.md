@@ -11,7 +11,8 @@ between them is yours to write. The query pipeline follows
 [Acadia](https://acadia.engineering/).
 
 Execution is delegated to whatever implements the `Driver` trait, so cairn
-itself depends on no particular database.
+itself depends on no particular database. The drivers that do implement it live
+in `src/driver`, one package each, so the query builder never sees a binding.
 
 ## How the types got here
 
@@ -24,6 +25,11 @@ flowchart LR
     S4 --> S5["5. row vs domain"]
     S5 --> S6["6. outer-join nullability"]
     S6 --> S7["7. execution"]
+    S7 --> S8["8. naming joined columns"]
+    S8 --> S9["9. aggregation"]
+    S9 --> S10["10. real drivers"]
+    S10 --> S11["11. typed rows"]
+    S11 --> S12["12. nested transactions"]
 
     S0 -.- D0["Table held a decoder<br/>row.get(name)"]
     S1 -.- D1["Selection introduced<br/>projection + decoder as one"]
@@ -33,9 +39,14 @@ flowchart LR
     S5 -.- D5["Binding::contramap<br/>table_of names the seam"]
     S6 -.- D6["abstract Nullable<br/>reachable only via col / row"]
     S7 -.- D7["Driver trait<br/>transaction combinator"]
+    S8 -.- D8["split2 destructures<br/>map_cols names"]
+    S9 -.- D9["Reducer holds only aggregates<br/>zip for one pass"]
+    S10 -.- D10["Driver became async<br/>drivers moved to src/driver"]
+    S11 -.- D11["RowShape::Typed<br/>typeof(e), e per column"]
+    S12 -.- D12["Driver split into Executor + Driver<br/>Tx counts the nesting"]
 
     classDef note fill:#f6f8fa,stroke:#d0d7de,color:#24292f
-    class D0,D1,D2,D3,D4,D5,D6,D7 note
+    class D0,D1,D2,D3,D4,D5,D6,D7,D8,D9,D10,D11,D12 note
 ```
 
 What changed in `Table` and `Query` at each step.
@@ -50,6 +61,11 @@ What changed in `Table` and `Query` at each step.
 | 5 | `Binding::contramap` added, generator emits `table_of`, attribute became `#cairn.table` | the row type and the domain type are different things, and the mapping is written by hand |
 | 6 | `left_join` returns the abstract `Nullable[C, R]`, `Selection::optional` added | make outer-join nullability enforced by the type |
 | 7 | `Driver` trait and `transaction`, `run` / `one` / `first` on every statement | build the SQL *and* run it |
+| 8 | `split2` and `Query::map_cols` added | stand in for the lambda destructuring MoonBit lacks |
+| 9 | `Reducer[Out]` with `Query::reduce` / `group_by` | make an invalid aggregate query unwritable |
+| 10 | `Driver` and `run` / `one` / `first` / `transaction` became `async`, drivers moved to `src/driver` | the PostgreSQL client for MoonBit is async, and a synchronous trait cannot hold it |
+| 11 | `RowShape` on `Driver`, `columns~` on `query` | the SQLite binding reports neither a result column's type nor its nullness, and guessing would be a silent wrong answer |
+| 12 | `Driver` split into `Executor` + `Driver : Executor`, `Tx[D]` added, `transaction` takes a `Tx` | two repositories that each bracket their own work must not send `BEGIN` twice, and a transaction body has no business committing |
 
 ### 1. Why `Selection`
 
@@ -324,8 +340,36 @@ SELECT u."name", p."title"
 ```
 
 `join` takes `Query[C1, A]` and `Table[C2, R2]` to `Query[(C1, C2), A]`. `Cols`
-becomes a tuple, so from then on `.0` and `.1` reach each table's columns. A
-third join nests further: `((C1, C2), C3)`.
+becomes a tuple, so from then on `.0` and `.1` reach each table's columns.
+
+Acadia's joins produce tuples too (`intersect : … -> Rows (a, b)`). The
+difference is that Elm can destructure them in a lambda parameter,
+`\((a, b), c) -> …`, and **MoonBit has no such syntax**. cairn fills the gap
+with two tools.
+
+**Two tables: `split2`.** It turns a function of N named arguments into the
+one-argument function the combinators expect, so the `.0` lives inside cairn
+and never in your code.
+
+```moonbit
+|> @sql.Query::filter(@sql.split2((u, p) => u.age.gte(18) & p.title.ne("draft")))
+|> @sql.Query::map(@sql.split2((_u, p) => @sql.sel(p.title)))
+```
+
+**Three or more: name the shape with `map_cols`.** Once the arguments start
+needing positional `_` placeholders, naming reads better than destructuring.
+
+```moonbit
+|> @sql.Query::map_cols(c => { ticket: c.0.0, assignment: c.0.1, closure: c.1 })
+|> @sql.Query::filter(j => j.ticket.id.eq(id))
+```
+
+If a struct feels like too much, a `typealias` at least makes the signature
+readable.
+
+```moonbit
+pub typealias ((UserCols, PostCols), TagCols) as UserPostTag
+```
 
 Assembling one domain value out of several tables uses the same tools: write
 the domain type into the `Selection[D]` that `Query::map(c => ...)` returns.
@@ -364,23 +408,135 @@ nullable columns, name the deciding column with `Selection::optional_on(key~)`.
 
 ## Execution
 
-### Driver
+### Executor and Driver
 
 All cairn asks of a real database is that it can run a statement plus an
-ordered parameter list.
+ordered parameter list. That is `Executor`, and it is all a statement needs:
 
 ```moonbit
-pub(open) trait Driver {
-  query(Self, String, Array[SqlValue]) -> Array[Array[SqlValue]] raise DbError
-  execute(Self, String, Array[SqlValue]) -> Int raise DbError
+pub(open) trait Executor {
+  async query(Self, String, Array[SqlValue], columns~ : Int) -> Array[Array[SqlValue]] raise DbError
+  async execute(Self, String, Array[SqlValue]) -> Int raise DbError
   dialect(Self) -> Dialect
-  begin(Self) -> Unit raise DbError
-  commit(Self) -> Unit raise DbError
-  rollback(Self) -> Unit raise DbError
+  row_shape(Self) -> RowShape = _   // defaults to Plain
 }
 ```
 
+Bracketing a transaction is a separate capability, and a driver is an
+`Executor` that also has it:
+
+```moonbit
+pub(open) trait Driver : Executor {
+  async begin(Self) -> Unit raise DbError
+  async commit(Self) -> Unit raise DbError
+  async rollback(Self) -> Unit raise DbError
+}
+```
+
+**The split is the point.** `run` / `one` / `first` are bounded by `Executor`,
+and everything cairn hands to the body of a transaction is an `Executor` and
+nothing more — so code running inside a transaction cannot commit or roll back
+the transaction it is running inside. Only `Tx` sends those three statements.
+
 The driver is the connection. Pooling, if you want it, belongs outside.
+
+**Why `async`.** Of the two SQL client libraries MoonBit has, one is
+synchronous and the other is not, and MoonBit has no polymorphism over
+asyncness — an `async` function can only be called from an `async` function. A
+synchronous trait could not hold the asynchronous client at all, while an
+asynchronous one holds both: a synchronous driver implements an `async` method
+with an ordinary `fn`, since a body that never suspends is a valid body. So the
+trait is `async` and `run` / `one` / `first` / `transaction` are too, which
+means calling them needs an `async fn main` or an `async test`.
+
+`async` itself compiles on every backend, so the query builder stays portable;
+it is the two client libraries, and `moonbitlang/async` under them, that are
+native-only.
+
+### Drivers
+
+| Package | Backing library | Target |
+|---|---|---|
+| `@fake` (`src/driver/fake`) | none — records statements and replays canned rows | native |
+| `@postgres` (`src/driver/postgres`) | [`moonbit-community/postgres`](https://github.com/moonbit-community/postgres.mbt) | native |
+| `@sqlite` (`src/driver/sqlite`) | [`moonbit-community/sqlite3`](https://github.com/moonbit-community/sqlite3.mbt) | native |
+
+```moonbit
+@postgres.with_connection(
+  @postgres.config(host="localhost", user="alliana", database="cairn"),
+  db => {
+    let tickets = @sql.from(TicketRow::table()).run(db)
+    ...
+  },
+)
+```
+
+`with_connection` exists because the client splits a connection into a `Client`
+that statements go through and a `Connection` whose `run` drives the protocol
+underneath it. Nothing happens unless something drives that pump, so it is
+spawned for you and the connection is closed however the body ends.
+
+The two translations either side of the wire are the whole of the driver.
+Going out, the *server* decides what type each placeholder has, so cairn's
+`VInt(Int64)` is encoded at whatever width the column turned out to be. Coming
+back, the row description names each column's type, so a `SqlValue` of the
+matching shape can be built — cairn's decoders match on the constructor, and a
+guess would be a silent wrong answer. PostgreSQL types cairn has no shape for
+(dates, timestamps, uuid) are refused by name rather than guessed at; cast them
+in the query, as in `submitted_at::text`.
+
+```moonbit
+@sqlite.with_connection(":memory:", db => {
+  let tickets = @sql.from(TicketRow::table()).run(db)
+  ...
+})
+```
+
+### Why `RowShape`
+
+The SQLite binding is deliberately thin: it hands back whatever you ask a
+column for, and has no public way to report a column's type or to say `NULL`.
+Ask it for a column as an `Int` and a NULL arrives as `0` — a real value, and
+the wrong one. That is a silent wrong answer in the middle of an otherwise
+type-safe path, so the type is asked of the database rather than guessed.
+
+A driver declares which shape of SELECT list it needs, and cairn writes it:
+
+```sql
+-- RowShape::Plain, what a driver that can describe a result row needs
+SELECT i."id", t."tag" FROM "items" AS i LEFT JOIN "tags" AS t ON ...
+
+-- RowShape::Typed, what the SQLite driver declares
+SELECT typeof(i."id"), i."id", typeof(t."tag"), t."tag" FROM ...
+```
+
+The driver folds each pair back into one `SqlValue`, so nothing above it sees
+the doubled list — which is also why `query` is told `columns~`, the width of
+the projection rather than of the SELECT list. Each projected expression is
+rendered **once** and its text reused, since rendering it twice would bind any
+literal in it twice and shift every later placeholder.
+
+The tag SQLite returns is the value's storage class, not the column's declared
+type, so a column declared `INTEGER` that holds text reads back as text — which
+is what is actually stored.
+
+Going the other way, a `VNull` parameter is simply not bound. SQLite reads an
+unbound parameter as NULL, and that is the only way to send one through this
+binding.
+
+Both gaps are one small change away in the binding itself — `internal/ffi`
+already has `sqlite3_column_type` and `sqlite3_bind_null`, they are just not
+public — so this may become unnecessary upstream.
+
+Testing a repository does not need any of this: `@fake.FakeDb` implements the
+same trait, and records what it was asked to run.
+
+```moonbit
+let db = @fake.FakeDb::new(counts=[1, 1])
+let repo = SqlTickets::new(db)
+repo.save(Open(id=1, subject="printer on fire"))
+db.log  // ["BEGIN", "QUERY", "EXEC", "COMMIT"]
+```
 
 ### Running
 
@@ -408,6 +564,8 @@ row type does not appear.
 body is an ordinary function that may `raise` part way through.
 
 ```moonbit
+let db = @sql.Tx::new(driver)
+
 @sql.transaction(db, conn => {
   let removed = @sql.delete(DraftRow::table(), d => d.id.eq(2)).run(conn)
   let added = @sql.insert(SubmittedRow::table(), { id: 2, items: 1, submitted_at: at }).run(conn)
@@ -435,6 +593,112 @@ flowchart LR
 
 All three are pinned by tests (`["BEGIN", "EXEC", "EXEC", "COMMIT"]`,
 `["BEGIN", "EXEC", "ROLLBACK"]`, `[]`).
+
+#### Why a `Tx` rather than the driver
+
+`transaction` takes a `Tx[D]`, not the driver. A `Tx` is the driver plus one
+number — how deep into nested transactions this connection currently is — and
+that is what lets **calls nest**:
+
+```moonbit
+pub struct Tx[D] {
+  db : D
+  mut depth : Int        // 0 means nothing is open; the next scope must BEGIN
+  mut failure : Error?   // what a nested scope failed with, if one did
+}
+```
+
+Only the outermost scope sends `BEGIN` and `COMMIT`. An inner one runs its body
+and nothing else, so two operations that each insist on being atomic land in
+one transaction when something wraps them:
+
+```moonbit
+@sql.transaction(db, _ => {
+  tickets.save(a)   // save brackets its own work...
+  users.save(b)     // ...but here both join the enclosing transaction
+})
+// => ["BEGIN", "QUERY", "EXEC", "QUERY", "EXEC", "COMMIT"]
+```
+
+Run on its own, that same `save` *is* the outermost scope and brackets itself.
+A repository never has to know which case it is in — which is the reason
+nothing about a transaction is passed as an argument.
+
+**An inner scope cannot fail by itself.** There is no savepoint underneath
+this, so there is no way to undo only one scope's writes. A nested failure
+therefore marks the whole transaction rollback-only, and if the body catches it
+and carries on, the outermost scope refuses to commit:
+
+```mermaid
+flowchart LR
+    N["nested body raises"] --> P["mark rollback-only<br/>keep the cause"] --> U["re-raise"]
+    U -->|"the enclosing body catches it<br/>and returns normally"| X["ROLLBACK<br/>raise RollbackOnly(cause~)"]
+    U -->|"it propagates"| Y["ROLLBACK<br/>re-raise the same error"]
+```
+
+Committing instead would write whichever half of the work happened to survive.
+`RollbackOnly` carries the failure that made the commit impossible, not the
+fact that someone swallowed it. The poison is scoped to the transaction, not to
+the connection: the next one starts clean.
+
+A `Tx` counts one connection's position in one call stack, so it is not safe to
+share between concurrently running tasks.
+
+## Aggregation
+
+`Reducer[Out]` folds many rows into one summary. Its runtime shape is the same
+as `Selection`, but the type is **deliberately separate**: a `Reducer` may only
+hold aggregate expressions, so projecting a bare ungrouped column alongside an
+aggregate — which SQL rejects — **cannot be written in the first place**.
+
+```moonbit
+count()                        // Reducer[Int]     -- row count; 0 over no rows
+count_of(c)                    // Reducer[Int]     -- rows where the column is not NULL
+min(c) / max(c) / sum(c)       // Reducer[T?]      -- None over no rows
+avg(c)                         // Reducer[Double?]
+```
+
+`min` and friends read as `T?` while `count` reads as `Int`, matching SQL:
+`COUNT(*)` over no rows is zero, whereas `MIN` is NULL.
+
+`sum` and `avg` require `SqlNum`; `min` and `max` require `SqlOrd`. Both are
+marker traits, there only to keep a `Column[String]` from being summed.
+
+### Several summaries in one pass
+
+```moonbit
+@sql.from(users())
+|> @sql.Query::filter(u => u.deleted_at.is_none())
+|> @sql.Query::reduce(u => @sql.count().zip(@sql.min(u.age)).zip(@sql.max(u.age)))
+```
+
+```sql
+SELECT COUNT(*), MIN(u."age"), MAX(u."age")
+  FROM "users" AS u
+ WHERE u."deleted_at" IS NULL
+```
+
+Acadia offers `map2` through `map9` here; `zip` plus `map` covers the same
+ground without an arity ladder.
+
+### Grouping
+
+```moonbit
+@sql.from(users())
+|> @sql.Query::group_by(u => u.name, u => @sql.count().zip(@sql.avg(u.age)))
+```
+
+```sql
+SELECT u."name", COUNT(*), AVG(u."age")
+  FROM "users" AS u
+ GROUP BY u."name"
+```
+
+The grouping key is the only non-aggregate the projection can contain, and it
+is exactly the column being grouped by, so **the result is always a legal
+aggregate query**. Rows come back as `(K, S)` pairs.
+
+Run a single summary with `one`, a grouped one with `run`.
 
 ## The Repository pattern
 
@@ -482,11 +746,24 @@ ticket_closures(ticket_id -> ticket_assignments.ticket_id, resolution)
 `find` is a single statement with two outer joins.
 
 ```moonbit
+pub struct TicketJoin {
+  ticket : TicketCols
+  assignment : @sql.Nullable[AssignmentCols, AssignmentRow]
+  closure : @sql.Nullable[ClosureCols, ClosureRow]
+}
+
 @sql.from(TicketRow::table())
 |> @sql.Query::left_join(AssignmentRow::table(), (t, a) => t.id.eq_col(a.ticket_id))
 |> @sql.Query::left_join(ClosureRow::table(), (c, cl) => c.0.id.eq_col(cl.ticket_id))
-|> @sql.Query::map(c => TicketRow::all(c.0.0).zip(c.0.1.row()).zip(c.1.row()).map(assemble))
+|> @sql.Query::map_cols(c => { ticket: c.0.0, assignment: c.0.1, closure: c.1 })
+|> @sql.Query::map(j => TicketRow::all(j.ticket)
+  .zip(j.assignment.row())
+  .zip(j.closure.row())
+  .map(assemble))
 ```
+
+The nesting is confined to the one `map_cols` line. Everything after reads
+`j.assignment`, not `c.0.1`.
 
 **Which phase rows came back is the state.** No discriminator column exists.
 
@@ -499,7 +776,7 @@ ticket_closures(ticket_id -> ticket_assignments.ticket_id, resolution)
 A domain-meaningful query is the absence of a phase row.
 
 ```moonbit
-|> @sql.Query::filter(c => c.0.1.col(a => a.ticket_id).is_none())
+|> @sql.Query::filter(j => j.assignment.col(a => a.ticket_id).is_none())
 // -> WHERE ta."ticket_id" IS NULL
 ```
 
@@ -528,23 +805,33 @@ tables'**, and it is the part a generator cannot write.
 
 ### How it meets transactions
 
-Since the driver is the connection, the `conn` in
-`transaction(self.db, conn => ...)` is the same object as `self.db`. A
-repository therefore **joins an enclosing transaction automatically**.
-
-The flip side is that a repository cannot tell whether it is inside one. To put
-several repositories into a single unit of work, rebind them to `conn` inside
-the transaction.
+A repository holds a `Tx[D]`, not a driver:
 
 ```moonbit
-@sql.transaction(db, conn => {
-  let tickets = SqlTickets::new(conn)
-  let users = SqlUsers::new(conn)
-  ...
-})
+struct SqlTickets[D] {
+  db : @sql.Tx[D]
+}
 ```
 
-Constructing a repository is one struct, so this is cheap.
+which is why `save` can bracket its own work without knowing whether anything
+else already has. Hand **the same `Tx`** to every repository over that
+connection, once, at wiring time:
+
+```moonbit
+let db = @sql.Tx::new(@sqlite.Sqlite::open("app.db"))
+let tickets = SqlTickets::new(db)
+let users = SqlUsers::new(db)
+
+@sql.transaction(db, _ => {
+  tickets.save(a)
+  users.save(b)
+})   // one BEGIN, one COMMIT
+```
+
+The shared depth is the whole mechanism: give two repositories two different
+`Tx` values over the same connection and they will ask the database to `BEGIN`
+twice, which SQLite rejects outright. Nothing has to be rebuilt inside the
+transaction — the repositories above are the same objects throughout.
 
 ## Where it errs on the safe side
 
@@ -557,6 +844,7 @@ Constructing a repository is one struct, so this is cheap.
 | UPDATE / DELETE without a predicate | you must call `update_all` / `delete_all` |
 | `one` finding zero or several rows | raises `NotFound` / `TooManyRows` |
 | a transaction body failing | ROLLBACK, then the same error is re-raised |
+| a nested transaction failing and the enclosing body carrying on | ROLLBACK, then `RollbackOnly` carrying the original cause |
 
 ## Not built yet
 
@@ -566,8 +854,6 @@ Constructing a repository is one struct, so this is cheap.
   `Table Unrestricted Food`. The `#cairn.table(security=...)` slot is reserved
 - **Indexes, constraints, migrations** — unknown attribute names are ignored on
   purpose, so adding these later will not break an older generator
-- **Aggregates** — `count_sel()` is a stub whose `read` ignores the row and
-  returns 0
 
 ## Development
 
