@@ -1,0 +1,13 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "packages": {
+    ".": {
+      "release-type": "simple",
+      "package-name": "aya",
+      "bump-minor-pre-major": true,
+      "extra-files": [
+        { "type": "generic", "path": "moon.mod" }
+      ]
+    }
+  }
+}

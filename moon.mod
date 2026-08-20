@@ -11,7 +11,7 @@
 
 name = "Allianaab2m/aya"
 
-version = "0.1.0"
+version = "0.1.0" // x-release-please-version
 
 readme = "README.md"
 
