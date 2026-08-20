@@ -93,10 +93,10 @@ test "the other scalars keep the client's own type rules" {
 test "the parameter list keeps its order" {
   let ps = params([@sql.VInt(1), @sql.VNull, @sql.VText("alice")])
   inspect(ps.length(), content="3")
-  inspect(
+  debug_inspect(
     ps.map(p => @client.ToSql::moonbit_type_name(p)),
     content=(
-      #|[SqlValue::VInt, SqlValue::VNull, SqlValue::VText]
+      #|["SqlValue::VInt", "SqlValue::VNull", "SqlValue::VText"]
     ),
   )
 }

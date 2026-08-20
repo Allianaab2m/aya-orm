@@ -126,7 +126,7 @@ pub impl @sql.Driver for Sqlite with fn rollback(self) {
 /// something put text in it. Reading the tag rather than the declared type is
 /// what makes the answer match what is actually stored.
 fn Sqlite::cell(
-  self : Sqlite,
+  _self : Sqlite,
   stmt : @sqlite3.Statement,
   index : Int,
   sql : String,

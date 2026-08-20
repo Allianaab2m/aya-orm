@@ -7,7 +7,6 @@ struct ItemCols {
   name : @sql.Column[String]
   price : @sql.Column[Double]
   note : @sql.Column[String?]
-  blob : @sql.Column[Bytes?]
 }
 
 ///|
@@ -25,7 +24,6 @@ fn items() -> @sql.Table[ItemCols, Item] {
     name: @sql.Column::new(tbl="i", name="name"),
     price: @sql.Column::new(tbl="i", name="price"),
     note: @sql.Column::new(tbl="i", name="note"),
-    blob: @sql.Column::new(tbl="i", name="blob"),
   }
   @sql.Table::new(
     table_name="items",
@@ -340,9 +338,11 @@ async test "a nested failure undoes the enclosing transaction, against SQLite" {
 /// SQLite's message rather than only a result code.
 async test "a broken statement fails as a DbError" {
   with_connection(":memory:", db => {
-    match (try? @sql.from(items()).run(db)) {
-      Ok(_) => fail("expected the missing table to be reported")
-      Err(e) =>
+    try {
+      let _ = @sql.from(items()).run(db)
+      fail("expected the missing table to be reported")
+    } catch {
+      e =>
         assert_true(
           "\{e}".contains("no such table") || "\{e}".contains("QueryFailed"),
         )

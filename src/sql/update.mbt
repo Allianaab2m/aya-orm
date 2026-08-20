@@ -45,15 +45,15 @@ pub fn[C, T : SqlEncode] Update::set(
   f : (C) -> Column[T],
   v : T,
 ) -> Update[C] {
-  let sets = Array::from_iter(self.sets.iter())
-  sets.push((f(self.cols).name(), Lit(SqlEncode::to_sql_value(v))))
+  let sets = self.sets.copy()
+  sets.push((f(self.cols).name, Lit(SqlEncode::to_sql_value(v))))
   { ..self, sets, }
 }
 
 ///|
 /// Narrow an update further. Conditions are ANDed together.
 pub fn[C] Update::filter(self : Update[C], f : (C) -> Expr[Bool]) -> Update[C] {
-  let wheres = Array::from_iter(self.wheres.iter())
+  let wheres = self.wheres.copy()
   wheres.push(f(self.cols).raw())
   { ..self, wheres, }
 }
@@ -73,11 +73,7 @@ pub fn[C] Update::to_sql(
     let (name, value) = pair
     "\"\{name}\" = \{em.expr(value)}"
   })
-  buf.write_string("\n    SET " + join(assignments, ", "))
-  if self.wheres.length() > 0 {
-    buf.write_string(
-      "\n  WHERE " + join(self.wheres.map(w => em.expr(w)), "\n    AND "),
-    )
-  }
+  buf.write_string("\n    SET " + assignments.join(", "))
+  buf.write_string(em.where_clause(self.wheres, indent="  "))
   (buf.to_string(), em.params)
 }

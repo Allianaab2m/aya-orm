@@ -1,18 +1,33 @@
 ///|
-/// A row in a table is represented as a map from column names to values.
+/// One result row, as the driver handed it back: the projected values in
+/// projection order, and nothing else. Columns are found by position, never by
+/// name.
 pub type Row = ArrayView[SqlValue]
 
 ///|
-/// Table definition. A table has a name and a list of columns.
+/// A table, with everything needed to read from it and write to it.
+///
+/// `Cols` is the struct of `Column[T]` handles the query combinators are
+/// written against; `R` is what one row is, which may be the generated row
+/// type or a domain type mapped onto it by `table_of`.
+///
+/// `tbl` is the alias the emitted SQL uses (`FROM "users" AS u`). It is fixed
+/// per table rather than assigned per query, which is why a self-join is not
+/// expressible yet: both sides would claim the same alias, and `Query::to_sql`
+/// raises `DuplicateAlias` rather than emit ambiguous column references.
 pub struct Table[Cols, R] {
   table_name : String
   tbl : String
   cols : Cols
+  /// Every column, in declaration order.
   all : Selection[R]
+  /// The write-side mirror of `all`.
   write : Binding[R]
 }
 
 ///|
+/// Assemble a table from its parts. Normally emitted by `cairn-gen` rather
+/// than written by hand.
 pub fn[C, R] Table::new(
   table_name~ : String,
   tbl~ : String,

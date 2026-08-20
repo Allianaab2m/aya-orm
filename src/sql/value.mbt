@@ -1,5 +1,11 @@
+// Values on the wire, and the traits that move MoonBit types across it.
+//
+// `SqlEncode` and `SqlDecode` are the two directions. `SqlOrd` and `SqlNum`
+// are markers that carry no methods: they exist only to keep an operator from
+// being offered on a type SQL cannot apply it to.
+
 ///|
-/// Contains values that can be sent and received to/from the database
+/// A value as it travels to or from the database.
 pub(all) enum SqlValue {
   VNull
   VInt(Int64)
@@ -10,7 +16,7 @@ pub(all) enum SqlValue {
 } derive(Debug, Eq)
 
 ///|
-/// SQL dialect. The format of placeholders is different.
+/// SQL dialect. The two differ in how a placeholder is spelled.
 pub(all) enum Dialect {
   Sqlite
   Postgres
@@ -36,6 +42,7 @@ pub(all) enum RowShape {
 } derive(Debug, Eq)
 
 ///|
+/// A stored value did not fit the type the entity declared for it.
 pub(all) suberror DecodeError {
   MissingColumn(String)
   TypeMismatch(column~ : String, expected~ : String)
@@ -43,13 +50,31 @@ pub(all) suberror DecodeError {
 } derive(Debug)
 
 ///|
+/// How a MoonBit value is written to a column.
 pub(open) trait SqlEncode {
   fn to_sql_value(Self) -> SqlValue
 }
 
 ///|
-/// Marker trait for types that can be compared in SQL. for gt, gte, lt, lte, asc, desc.
+/// How a column is read back into a MoonBit value.
+///
+/// The second argument is the column's name, carried only so that a failure
+/// can say which column it came from.
+pub(open) trait SqlDecode {
+  fn decode(SqlValue, String) -> Self raise DecodeError
+}
+
+///|
+/// Marker trait for types SQL will order: `gt`, `gte`, `lt`, `lte`, `asc`,
+/// `desc`. No methods — it is a constraint, not an interface.
 pub(open) trait SqlOrd {}
+
+///|
+/// Marker trait for types SQL will do arithmetic on.
+///
+/// Narrower than `SqlOrd` on purpose: `sum` and `avg` need a number, not
+/// merely something orderable, so a `Column[String]` cannot be summed.
+pub(open) trait SqlNum {}
 
 ///|
 pub impl SqlEncode for Int with fn to_sql_value(self) {
@@ -89,11 +114,49 @@ pub impl[T : SqlEncode] SqlEncode for T? with fn to_sql_value(self) {
 }
 
 ///|
-/// A nullable column is still orderable and comparable.
-///
-/// SQL happily sorts by a column that holds NULLs, so refusing `T?` here would
-/// reject ordinary queries like `ORDER BY submitted_at DESC`.
-pub impl[T : SqlOrd] SqlOrd for T?
+pub impl SqlDecode for Int with fn decode(v, k) {
+  match v {
+    VInt(n) => n.to_int()
+    _ => raise TypeMismatch(column=k, expected="Int")
+  }
+}
+
+///|
+pub impl SqlDecode for String with fn decode(v, k) {
+  match v {
+    VText(s) => s
+    _ => raise TypeMismatch(column=k, expected="String")
+  }
+}
+
+///|
+/// Numbers arrive as whichever of the two numeric shapes the driver chose, so
+/// an integral column read as a `Double` is accepted rather than rejected.
+pub impl SqlDecode for Double with fn decode(v, k) {
+  match v {
+    VDouble(d) => d
+    VInt(n) => n.to_double()
+    _ => raise TypeMismatch(column=k, expected="Double")
+  }
+}
+
+///|
+pub impl SqlDecode for Bool with fn decode(v, k) {
+  match v {
+    VBool(b) => b
+    VInt(n) => n != 0L
+    _ => raise TypeMismatch(column=k, expected="Bool")
+  }
+}
+
+///|
+/// NULL is the absent value; anything else goes through `T`'s own decoder.
+pub impl[T : SqlDecode] SqlDecode for T? with fn decode(v, k) {
+  match v {
+    VNull => None
+    other => Some(SqlDecode::decode(other, k))
+  }
+}
 
 ///|
 pub impl SqlOrd for Int
@@ -106,3 +169,19 @@ pub impl SqlOrd for String
 
 ///|
 pub impl SqlOrd for Double
+
+///|
+/// A nullable column is still orderable and comparable.
+///
+/// SQL happily sorts by a column that holds NULLs, so refusing `T?` here would
+/// reject ordinary queries like `ORDER BY submitted_at DESC`.
+pub impl[T : SqlOrd] SqlOrd for T?
+
+///|
+pub impl SqlNum for Int
+
+///|
+pub impl SqlNum for Int64
+
+///|
+pub impl SqlNum for Double

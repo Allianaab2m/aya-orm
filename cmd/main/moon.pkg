@@ -1,5 +1,0 @@
-// import {
-//   "Allianaab2m/cairn" @lib,
-// }
-
-pkgtype(kind: "executable")

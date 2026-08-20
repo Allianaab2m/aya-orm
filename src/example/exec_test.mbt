@@ -1,7 +1,6 @@
-///|
-/// The execution layer end to end, against the shared fake connection rather
-/// than a database binding. Nothing here is example-specific except the tables:
-/// `@fake.FakeDb` is the same thing a consumer of cairn would test against.
+// The execution layer end to end, against the fake connection rather than a
+// database binding. Nothing here is example-specific except the table:
+// `@fake.FakeDb` is the same thing a consumer of cairn would test against.
 
 ///|
 /// Running a query over a domain-typed table hands back domain values. The row
@@ -37,17 +36,16 @@ async test "queries return domain entities" {
 }
 
 ///|
-/// A state transition is exactly what a transaction is for: the delete and the
-/// insert either both land or neither does.
+/// Writes go through the same domain-typed table, so an `Order` is inserted
+/// without any hand-written flattening at the call site.
 async test "a state transition runs inside one transaction" {
   let db = @fake.FakeDb::new(counts=[1, 1])
   let moved = @sql.transaction(@sql.Tx::new(db), conn => {
-    let removed = @sql.delete(DraftRow::table(), d => d.id.eq(2)).run(conn)
-    let added = @sql.insert(SubmittedRow::table(), {
-      id: 2,
-      items: 1,
-      submitted_at: "2026-08-01",
-    }).run(conn)
+    let removed = @sql.delete(orders(), o => o.id.eq(2)).run(conn)
+    let added = @sql.insert(
+      orders(),
+      Submitted(id=2, items=1, submitted_at="2026-08-01"),
+    ).run(conn)
     (removed, added)
   })
   debug_inspect(
@@ -70,7 +68,7 @@ async test "a failed transition rolls the whole transition back" {
   let db = @fake.FakeDb::new(counts=[1])
   try {
     let _ : Unit = @sql.transaction(@sql.Tx::new(db), conn => {
-      let _ = @sql.delete(DraftRow::table(), d => d.id.eq(2)).run(conn)
+      let _ = @sql.delete(orders(), o => o.id.eq(2)).run(conn)
       raise @sql.Malformed("order 2 is not submittable")
     })
     fail("expected the error to propagate")

@@ -1,30 +1,32 @@
 ///|
 /// A summary computed across many rows, and how to read it back.
 ///
-/// The runtime shape is the same as `Selection`, but the type is deliberately
-/// separate: a `Reducer` may only hold aggregate expressions. That is what
-/// stops a bare column being projected alongside an aggregate without being
-/// grouped by — SQL rejects such a query, and here it cannot be written.
-pub struct Reducer[Out] {
-  exprs : Array[RawExpr]
-  read : (ArrayView[SqlValue]) -> Out raise DecodeError
+/// Structurally this is a `Selection` — the same expressions-plus-positional-
+/// reader pair — but the type is deliberately separate and opaque: a `Reducer`
+/// may only hold aggregate expressions, and there is no constructor that could
+/// put anything else in one. That is what stops a bare column being projected
+/// alongside an aggregate without being grouped by. SQL rejects such a query,
+/// and here it cannot be written.
+struct Reducer[Out](Selection[Out])
+
+///|
+/// The projection underneath, for the query builder to splice in.
+///
+/// Kept private: handing a `Reducer` back out as a `Selection` would undo the
+/// separation the type exists for.
+fn[Out] Reducer::selection(self : Reducer[Out]) -> Selection[Out] {
+  let Reducer(s) = self
+  s
 }
 
 ///|
-/// Marker trait for types SQL will do arithmetic on.
+/// One aggregate call over one optional argument, read back with `T`'s decoder.
 ///
-/// The counterpart of `SqlOrd`: `sum` and `avg` need a number, not merely
-/// something orderable, so a `Column[String]` cannot be summed.
-pub(open) trait SqlNum {}
-
-///|
-pub impl SqlNum for Int
-
-///|
-pub impl SqlNum for Int64
-
-///|
-pub impl SqlNum for Double
+/// `key` is the name a decode failure is reported against, which is the
+/// column's for a column aggregate and the function's for `COUNT(*)`.
+fn[T : SqlDecode] agg(f : String, arg : RawExpr?, key~ : String) -> Reducer[T] {
+  Reducer(Selection::new([Agg(f, arg)], row => SqlDecode::decode(row[0], key)))
+}
 
 ///|
 /// How many rows there are.
@@ -32,37 +34,31 @@ pub impl SqlNum for Double
 /// Unlike the others this never comes back empty: `COUNT(*)` over no rows is
 /// zero, where `MIN` over no rows is NULL.
 pub fn count() -> Reducer[Int] {
-  {
-    exprs: [Agg("COUNT", None)],
-    read: row => SqlDecode::decode(row[0], "count"),
-  }
+  agg("COUNT", None, key="count")
 }
 
 ///|
 /// How many rows have a value in this column. NULLs are not counted.
 pub fn[T] count_of(c : Column[T]) -> Reducer[Int] {
-  {
-    exprs: [Agg("COUNT", Some(c.raw()))],
-    read: row => SqlDecode::decode(row[0], "count"),
-  }
+  agg("COUNT", Some(c.raw()), key="count")
 }
 
 ///|
 /// The smallest value, or nothing when there are no rows.
 pub fn[T : SqlDecode + SqlOrd] min(c : Column[T]) -> Reducer[T?] {
-  agg1("MIN", c)
+  agg("MIN", Some(c.raw()), key=c.name)
 }
 
 ///|
 /// The largest value, or nothing when there are no rows.
 pub fn[T : SqlDecode + SqlOrd] max(c : Column[T]) -> Reducer[T?] {
-  agg1("MAX", c)
+  agg("MAX", Some(c.raw()), key=c.name)
 }
 
 ///|
 /// The total, or nothing when there are no rows.
 pub fn[T : SqlDecode + SqlNum] sum(c : Column[T]) -> Reducer[T?] {
-  agg1("SUM", c)
+  agg("SUM", Some(c.raw()), key=c.name)
 }
 
 ///|
@@ -71,20 +67,7 @@ pub fn[T : SqlDecode + SqlNum] sum(c : Column[T]) -> Reducer[T?] {
 /// The result is a `Double` whatever the column's type, because an average of
 /// integers is not generally an integer.
 pub fn[T : SqlNum] avg(c : Column[T]) -> Reducer[Double?] {
-  {
-    exprs: [Agg("AVG", Some(c.raw()))],
-    read: row => SqlDecode::decode(row[0], c.name()),
-  }
-}
-
-///|
-/// One aggregate over one column, read back as optional.
-fn[T : SqlDecode, U] agg1(f : String, c : Column[U]) -> Reducer[T?] {
-  let key = c.name()
-  {
-    exprs: [Agg(f, Some(c.raw()))],
-    read: row => SqlDecode::decode(row[0], key),
-  }
+  agg("AVG", Some(c.raw()), key=c.name)
 }
 
 ///|
@@ -96,11 +79,7 @@ pub fn[A, B] Reducer::zip(
   self : Reducer[A],
   other : Reducer[B],
 ) -> Reducer[(A, B)] {
-  let n = self.exprs.length()
-  let exprs : Array[RawExpr] = []
-  exprs.push_iter(self.exprs.iter())
-  exprs.push_iter(other.exprs.iter())
-  { exprs, read: row => ((self.read)(row[0:n]), (other.read)(row[n:])) }
+  Reducer(self.selection().zip(other.selection()))
 }
 
 ///|
@@ -109,5 +88,5 @@ pub fn[A, B] Reducer::map(
   self : Reducer[A],
   f : (A) -> B raise DecodeError,
 ) -> Reducer[B] {
-  { exprs: self.exprs, read: row => f((self.read)(row)) }
+  Reducer(self.selection().map(f))
 }
