@@ -2,8 +2,8 @@
 
 [← 実行](06-execution.md) · [スキーマ →](08-schema.md)
 
-これについて cairn は何も提供しません。Repository はふつうのアプリケーションコード
-です。この章は、その下に cairn を敷いたときにそのコードが取る形についての話です。
+これについて aya は何も提供しません。Repository はふつうのアプリケーションコード
+です。この章は、その下に aya を敷いたときにそのコードが取る形についての話です。
 
 > ここのコードは `src/example` から抜き出したものではなく説明用です。例題は
 > エンティティ 2 つだけに絞ってあります。理由は[設計ノート](09-design.md)を
@@ -17,7 +17,7 @@
 汎用の `find_by(criteria)` には言えないことを言っています。
 
 ```moonbit
-// ポート: ドメインの語彙。cairn に依存しない。
+// ポート: ドメインの語彙。aya に依存しない。
 pub(open) trait TicketRepository {
   async fn find(Self, Int) -> Ticket?
   async fn save(Self, Ticket) -> Unit

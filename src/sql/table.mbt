@@ -26,7 +26,7 @@ pub struct Table[Cols, R] {
 }
 
 ///|
-/// Assemble a table from its parts. Normally emitted by `cairn-kit` rather
+/// Assemble a table from its parts. Normally emitted by `aya-kit` rather
 /// than written by hand.
 pub fn[C, R] Table::new(
   table_name~ : String,

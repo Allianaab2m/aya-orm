@@ -1,6 +1,6 @@
 // The execution layer end to end, against the fake connection rather than a
 // database binding. Nothing here is example-specific except the table:
-// `@fake.FakeDb` is the same thing a consumer of cairn would test against.
+// `@fake.FakeDb` is the same thing a consumer of aya would test against.
 
 ///|
 /// Running a query over a domain-typed table hands back domain values. The row

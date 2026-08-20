@@ -171,7 +171,7 @@ pub fn Snapshot::from_json_string(text : String) -> Snapshot raise DdlError {
   let version = get_str(root, "version", "snapshot")
   guard version == SNAPSHOT_VERSION else {
     raise BadSnapshot(
-      reason="snapshot format version \{version}, this cairn writes \{SNAPSHOT_VERSION}",
+      reason="snapshot format version \{version}, this aya writes \{SNAPSHOT_VERSION}",
     )
   }
   let dialect = dialect_of_name(get_str(root, "dialect", "snapshot"))

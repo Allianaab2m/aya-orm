@@ -1,9 +1,9 @@
 import {
-  "Allianaab2m/cairn/sql",
+  "Allianaab2m/aya/sql",
 }
 
 import {
-  "Allianaab2m/cairn/driver/fake",
+  "Allianaab2m/aya/driver/fake",
   "moonbitlang/async",
 } for "test"
 
@@ -25,7 +25,7 @@ options(
 //
 // A hook that shells out to `moon run src/kit/cmd` recurses forever, because
 // running the generator is itself a build of this same module. Consumers of
-// cairn get a prebuilt `cairn-kit` binary and point the hook at that, the way
+// aya get a prebuilt `aya-kit` binary and point the hook at that, the way
 // morm does with `$mod_dir/.mooncakes/oboard/morm/morm-gen`. Inside this repo
 // the example is regenerated explicitly:
 //

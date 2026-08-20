@@ -72,10 +72,10 @@ fn column_of(
 }
 
 ///|
-/// Map a MoonBit type to its column type, for the types cairn can store.
+/// Map a MoonBit type to its column type, for the types aya can store.
 ///
 /// The table is deliberately no wider than `SqlValue`: a type that is not one
-/// of these has to state its storage with `#cairn.column(type="...")`, because
+/// of these has to state its storage with `#aya.column(type="...")`, because
 /// guessing what a wrapper type wraps is how a domain `UserId` ends up in a
 /// TEXT column.
 pub fn infer_sql_type(ty : String, dialect : @sql.Dialect) -> String? {

@@ -9,7 +9,7 @@
 //   "moonbitlang/x@0.4.6",
 // }
 
-name = "Allianaab2m/cairn"
+name = "Allianaab2m/aya"
 
 version = "0.1.0"
 

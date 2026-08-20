@@ -1,8 +1,8 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "Allianaab2m/cairn/driver/fake"
+package "Allianaab2m/aya/driver/fake"
 
 import {
-  "Allianaab2m/cairn/sql",
+  "Allianaab2m/aya/sql",
 }
 
 // Values

@@ -74,7 +74,7 @@ nothing to pair him with. `ORDER BY p."id" DESC` is why carol precedes alice.
 
 Acadia's joins produce tuples too (`intersect : … -> Rows (a, b)`). The
 difference is that Elm can destructure them in a lambda parameter,
-`\((a, b), c) -> …`, and **MoonBit has no such syntax**. cairn supplies two
+`\((a, b), c) -> …`, and **MoonBit has no such syntax**. aya supplies two
 tools instead, so `.0.0` lives in the library and not in your code.
 
 ### Two tables: `split2`
@@ -212,7 +212,7 @@ Every table in one query needs its own alias, otherwise `u."id"` silently
 refers to whichever one the database picks. `Query::to_sql` raises
 `DuplicateAlias(tbl~)` rather than emit that.
 
-Aliases are fixed per table (`#cairn.table(alias="u")`), not assigned per
+Aliases are fixed per table (`#aya.table(alias="u")`), not assigned per
 query, which is why **self-joins are not expressible yet** — see
 [design notes](09-design.md).
 

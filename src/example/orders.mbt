@@ -4,9 +4,9 @@
 /// It exists to describe storage. It deliberately does not try to be the thing
 /// the rest of the program works with — see `Order` below, which is a sum type
 /// the table cannot express directly.
-#cairn.table(name="orders", alias="o", cols="OrderCols")
+#aya.table(name="orders", alias="o", cols="OrderCols")
 pub(all) struct OrderRow {
-  #cairn.id
+  #aya.id
   id : Int
   items : Int
   status : String

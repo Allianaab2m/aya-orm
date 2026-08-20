@@ -2,7 +2,7 @@
 
 [← 集約](05-aggregate.md) · [Repository →](07-repository.md)
 
-この章より上はすべて方言非依存です。cairn が作るのは SQL 文字列と順序付きパラメータ列
+この章より上はすべて方言非依存です。aya が作るのは SQL 文字列と順序付きパラメータ列
 だけでした。この章は、その組を実行できる何かに渡す話です。
 
 ## 意図的に分けた 2 つのトレイト
@@ -27,7 +27,7 @@ pub(open) trait Driver : Executor {
 `Executor`」です。
 
 **この分割こそが要点です。** `run` / `one` / `first` の境界は `Executor` であり、
-cairn がトランザクション本体に渡すものも `Executor` でしかありません。だから
+aya がトランザクション本体に渡すものも `Executor` でしかありません。だから
 トランザクションの中で走るコードは、自分が走っているトランザクションをコミットも
 ロールバックもできません。この 3 文を送るのは `Tx` だけです。
 
@@ -202,7 +202,7 @@ pub(all) suberror DbError {
 })
 
 @postgres.with_connection(
-  @postgres.config(host="localhost", user="alliana", database="cairn"),
+  @postgres.config(host="localhost", user="alliana", database="aya"),
   db => {
     let tickets = @sql.from(TicketRow::table()).run(db)
     ...
@@ -212,14 +212,14 @@ pub(all) suberror DbError {
 
 `with_connection` があるのは、PostgreSQL クライアントが接続を 2 つに分けている
 からです。文が通る `Client` と、その下でプロトコルを回す `run` を持つ `Connection`
-です。そのポンプを誰かが回さないと何も起きないので、cairn 側で spawn し、本体が
+です。そのポンプを誰かが回さないと何も起きないので、aya 側で spawn し、本体が
 どう終わっても接続を閉じます。
 
 ワイヤの両側の 2 つの変換がドライバのすべてです。出ていく側では、各プレースホルダの
-型を決めるのは**サーバ**なので、cairn の `VInt(Int64)` は列の実際の幅に合わせて
+型を決めるのは**サーバ**なので、aya の `VInt(Int64)` は列の実際の幅に合わせて
 エンコードされます。返ってくる側では row description が各列の型を教えてくれるので、
-対応する形の `SqlValue` を組み立てられます。cairn のデコーダはコンストラクタで
-マッチするので、当て推量は黙って誤った答えになるところでした。cairn に対応する形の
+対応する形の `SqlValue` を組み立てられます。aya のデコーダはコンストラクタで
+マッチするので、当て推量は黙って誤った答えになるところでした。aya に対応する形の
 ない PostgreSQL の型（日付・タイムスタンプ・uuid）は推測せず名前で拒否します。
 `submitted_at::text` のようにクエリ側でキャストしてください。
 
@@ -234,7 +234,7 @@ SQLite のバインディングは意図的に薄く、「聞かれた型で列�
 NULL は `0` として返ってきます — 実在する値で、しかも誤った値です。型安全な経路の
 只中でこれは黙った誤答なので、当て推量ではなくデータベースに型を聞きます。
 
-ドライバは必要な SELECT リストの形を宣言し、cairn がそのとおりに書きます。
+ドライバは必要な SELECT リストの形を宣言し、aya がそのとおりに書きます。
 
 ```sql
 -- RowShape::Plain。結果行を記述できるドライバが必要とする形

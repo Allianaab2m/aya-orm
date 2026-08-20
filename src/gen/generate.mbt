@@ -5,7 +5,7 @@ pub(all) suberror GenError {
 } derive(Debug)
 
 ///|
-/// Parse a source file and lower every `#cairn.table` in it.
+/// Parse a source file and lower every `#aya.table` in it.
 ///
 /// The shared front half of both generators: the column-handle emitter and the
 /// DDL emitter must see the same entities, or the code and the schema drift.

@@ -1,14 +1,14 @@
 ///|
 /// The entity source most tests in this file start from.
 let sample : String =
-  #|#cairn.table(name="accounts", alias="a")
-  #|#cairn.index(name="idx_accounts_email", columns="email", unique="true")
+  #|#aya.table(name="accounts", alias="a")
+  #|#aya.index(name="idx_accounts_email", columns="email", unique="true")
   #|pub struct Account {
-  #|  #cairn.id
-  #|  #cairn.column(sql_type="INTEGER", autoincrement="true")
+  #|  #aya.id
+  #|  #aya.column(sql_type="INTEGER", autoincrement="true")
   #|  id : AccountId
   #|  email : String
-  #|  #cairn.column(name="plan_code", sql_type="TEXT", default="'free'")
+  #|  #aya.column(name="plan_code", sql_type="TEXT", default="'free'")
   #|  plan : Plan
   #|  note : String?
   #|}
@@ -53,9 +53,9 @@ test "built-in types are inferred and explicit ones win" {
 ///|
 test "the same entity maps to different types per dialect" {
   let src =
-    #|#cairn.table(name="events", alias="e")
+    #|#aya.table(name="events", alias="e")
     #|pub struct Event {
-    #|  #cairn.id
+    #|  #aya.id
     #|  id : Int64
     #|  ok : Bool
     #|  weight : Double
@@ -89,9 +89,9 @@ test "the same entity maps to different types per dialect" {
 ///|
 test "a wrapper type must say what it stores" {
   let src =
-    #|#cairn.table(name="accounts", alias="a")
+    #|#aya.table(name="accounts", alias="a")
     #|pub struct Account {
-    #|  #cairn.id
+    #|  #aya.id
     #|  id : AccountId
     #|}
     #|
@@ -130,11 +130,11 @@ test "creating a table writes its columns and indexes" {
 ///|
 test "a foreign key is written on the column that declares it" {
   let src =
-    #|#cairn.table(name="orders", alias="o")
+    #|#aya.table(name="orders", alias="o")
     #|pub struct Order {
-    #|  #cairn.id
+    #|  #aya.id
     #|  id : Int
-    #|  #cairn.column(references="accounts.id", on_delete="cascade")
+    #|  #aya.column(references="accounts.id", on_delete="cascade")
     #|  account_id : Int
     #|}
     #|
@@ -153,16 +153,16 @@ test "a foreign key is written on the column that declares it" {
 ///|
 test "an added nullable column is a plain ALTER" {
   let before =
-    #|#cairn.table(name="accounts", alias="a")
+    #|#aya.table(name="accounts", alias="a")
     #|pub struct Account {
-    #|  #cairn.id
+    #|  #aya.id
     #|  id : Int
     #|}
     #|
   let after =
-    #|#cairn.table(name="accounts", alias="a")
+    #|#aya.table(name="accounts", alias="a")
     #|pub struct Account {
-    #|  #cairn.id
+    #|  #aya.id
     #|  id : Int
     #|  note : String?
     #|}
@@ -179,16 +179,16 @@ test "an added nullable column is a plain ALTER" {
 ///|
 test "a new NOT NULL column with no default is refused" {
   let before =
-    #|#cairn.table(name="accounts", alias="a")
+    #|#aya.table(name="accounts", alias="a")
     #|pub struct Account {
-    #|  #cairn.id
+    #|  #aya.id
     #|  id : Int
     #|}
     #|
   let after =
-    #|#cairn.table(name="accounts", alias="a")
+    #|#aya.table(name="accounts", alias="a")
     #|pub struct Account {
-    #|  #cairn.id
+    #|  #aya.id
     #|  id : Int
     #|  email : String
     #|}
@@ -203,7 +203,7 @@ test "a new NOT NULL column with no default is refused" {
         content=(
           #|UnsafeChange(
           #|  table="accounts",
-          #|  reason="column `email` is NOT NULL with no default, so existing rows have no value to take; add `#cairn.column(default=\"...\")` or make the field optional",
+          #|  reason="column `email` is NOT NULL with no default, so existing rows have no value to take; add `#aya.column(default=\"...\")` or make the field optional",
           #|)
         ),
       )
@@ -213,17 +213,17 @@ test "a new NOT NULL column with no default is refused" {
 ///|
 test "retyping a column rebuilds the table" {
   let before =
-    #|#cairn.table(name="accounts", alias="a")
+    #|#aya.table(name="accounts", alias="a")
     #|pub struct Account {
-    #|  #cairn.id
+    #|  #aya.id
     #|  id : Int
     #|  email : String
     #|}
     #|
   let after =
-    #|#cairn.table(name="accounts", alias="a")
+    #|#aya.table(name="accounts", alias="a")
     #|pub struct Account {
-    #|  #cairn.id
+    #|  #aya.id
     #|  id : Int
     #|  email : String?
     #|}
@@ -254,20 +254,20 @@ test "retyping a column rebuilds the table" {
 ///|
 test "dropping an indexed column rebuilds and restores the surviving indexes" {
   let before =
-    #|#cairn.table(name="accounts", alias="a")
-    #|#cairn.index(name="idx_accounts_email", columns="email")
-    #|#cairn.index(name="idx_accounts_id", columns="id")
+    #|#aya.table(name="accounts", alias="a")
+    #|#aya.index(name="idx_accounts_email", columns="email")
+    #|#aya.index(name="idx_accounts_id", columns="id")
     #|pub struct Account {
-    #|  #cairn.id
+    #|  #aya.id
     #|  id : Int
     #|  email : String
     #|}
     #|
   let after =
-    #|#cairn.table(name="accounts", alias="a")
-    #|#cairn.index(name="idx_accounts_id", columns="id")
+    #|#aya.table(name="accounts", alias="a")
+    #|#aya.index(name="idx_accounts_id", columns="id")
     #|pub struct Account {
-    #|  #cairn.id
+    #|  #aya.id
     #|  id : Int
     #|}
     #|
@@ -303,26 +303,26 @@ test "an unchanged schema produces nothing" {
 ///|
 test "reordering entity files is not a change" {
   let one =
-    #|#cairn.table(name="a", alias="a")
+    #|#aya.table(name="a", alias="a")
     #|pub struct A {
-    #|  #cairn.id
+    #|  #aya.id
     #|  id : Int
     #|}
-    #|#cairn.table(name="b", alias="b")
+    #|#aya.table(name="b", alias="b")
     #|pub struct B {
-    #|  #cairn.id
+    #|  #aya.id
     #|  id : Int
     #|}
     #|
   let other =
-    #|#cairn.table(name="b", alias="b")
+    #|#aya.table(name="b", alias="b")
     #|pub struct B {
-    #|  #cairn.id
+    #|  #aya.id
     #|  id : Int
     #|}
-    #|#cairn.table(name="a", alias="a")
+    #|#aya.table(name="a", alias="a")
     #|pub struct A {
-    #|  #cairn.id
+    #|  #aya.id
     #|  id : Int
     #|}
     #|
@@ -411,16 +411,16 @@ test "a migration file splits back into its statements" {
 ///|
 test "migrations are named after what they do" {
   let before =
-    #|#cairn.table(name="accounts", alias="a")
+    #|#aya.table(name="accounts", alias="a")
     #|pub struct Account {
-    #|  #cairn.id
+    #|  #aya.id
     #|  id : Int
     #|}
     #|
   let after =
-    #|#cairn.table(name="accounts", alias="a")
+    #|#aya.table(name="accounts", alias="a")
     #|pub struct Account {
-    #|  #cairn.id
+    #|  #aya.id
     #|  id : Int
     #|  note : String?
     #|}
@@ -461,19 +461,19 @@ test "postgres has a type table but no emitter yet" {
 ///|
 test "a column that becomes NOT NULL takes its default on the way across" {
   let before =
-    #|#cairn.table(name="accounts", alias="a")
+    #|#aya.table(name="accounts", alias="a")
     #|pub struct Account {
-    #|  #cairn.id
+    #|  #aya.id
     #|  id : Int
     #|  plan : String?
     #|}
     #|
   let after =
-    #|#cairn.table(name="accounts", alias="a")
+    #|#aya.table(name="accounts", alias="a")
     #|pub struct Account {
-    #|  #cairn.id
+    #|  #aya.id
     #|  id : Int
-    #|  #cairn.column(default="'free'")
+    #|  #aya.column(default="'free'")
     #|  plan : String
     #|}
     #|
@@ -503,17 +503,17 @@ test "a column that becomes NOT NULL takes its default on the way across" {
 ///|
 test "a column that becomes NOT NULL with no default is refused" {
   let before =
-    #|#cairn.table(name="accounts", alias="a")
+    #|#aya.table(name="accounts", alias="a")
     #|pub struct Account {
-    #|  #cairn.id
+    #|  #aya.id
     #|  id : Int
     #|  plan : String?
     #|}
     #|
   let after =
-    #|#cairn.table(name="accounts", alias="a")
+    #|#aya.table(name="accounts", alias="a")
     #|pub struct Account {
-    #|  #cairn.id
+    #|  #aya.id
     #|  id : Int
     #|  plan : String
     #|}
@@ -525,7 +525,7 @@ test "a column that becomes NOT NULL with no default is refused" {
     e =>
       inspect(
         e,
-        content="table `accounts`: column `plan` is NOT NULL with no default, so existing rows have no value to take; add `#cairn.column(default=\"...\")` or make the field optional",
+        content="table `accounts`: column `plan` is NOT NULL with no default, so existing rows have no value to take; add `#aya.column(default=\"...\")` or make the field optional",
       )
   }
 }

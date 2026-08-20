@@ -89,7 +89,7 @@ pub fn Journal::from_json_string(text : String) -> Journal raise KitError {
   }
   guard version == JOURNAL_VERSION else {
     raise BadJournal(
-      reason="journal format version \{version}, this cairn writes \{JOURNAL_VERSION}",
+      reason="journal format version \{version}, this aya writes \{JOURNAL_VERSION}",
     )
   }
   let dialect = match obj.get("dialect") {

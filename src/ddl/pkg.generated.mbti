@@ -1,9 +1,9 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "Allianaab2m/cairn/ddl"
+package "Allianaab2m/aya/ddl"
 
 import {
-  "Allianaab2m/cairn/gen",
-  "Allianaab2m/cairn/sql",
+  "Allianaab2m/aya/gen",
+  "Allianaab2m/aya/sql",
   "moonbitlang/core/debug",
 }
 

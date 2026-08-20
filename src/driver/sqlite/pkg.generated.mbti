@@ -1,8 +1,8 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "Allianaab2m/cairn/driver/sqlite"
+package "Allianaab2m/aya/driver/sqlite"
 
 import {
-  "Allianaab2m/cairn/sql",
+  "Allianaab2m/aya/sql",
   "moonbit-community/sqlite3",
 }
 

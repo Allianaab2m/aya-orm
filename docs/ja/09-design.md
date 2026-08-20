@@ -47,7 +47,7 @@ flowchart LR
 | ② | `Selection::new` を公開 | 生成コードは別パッケージにあり、そこから作る必要がある |
 | ③ | `Binding[In]` 追加、`Table { .., write }` | INSERT には値から行への向きが要る |
 | ④ | `Query { .., joins }`、`Query::join` が `Cols` をタプルに | テーブルが 2 つ以上になる |
-| ⑤ | `Binding::contramap` 追加、ジェネレータが `table_of` を出力、属性が `#cairn.table` に | 行型とドメイン型は別物であり、対応づけは手で書く |
+| ⑤ | `Binding::contramap` 追加、ジェネレータが `table_of` を出力、属性が `#aya.table` に | 行型とドメイン型は別物であり、対応づけは手で書く |
 | ⑥ | `left_join` が抽象型 `Nullable[C, R]` を返し、`Selection::optional` 追加 | 外部結合の NULL 許容性を型に守らせる |
 | ⑦ | `Driver` トレイトと `transaction`、各文に `run` / `one` / `first` | SQL を組み立てるだけでなく実行する |
 | ⑧ | `split2` と `Query::map_cols` 追加 | MoonBit にないラムダ引数の分解を肩代わりする |
@@ -96,11 +96,11 @@ API のほとんどはこのどれかに従っています。
 - **エイリアスと自己結合** — `Cols` の中の `Column` がエイリアスを焼き込んでいるので、
   `Table` は `cols` を `(String) -> Cols` として持つ必要がある
 - **セキュリティ型引数** — `Table[Sec, Cols, R]`。Acadia の `Table Unrestricted Food`
-  に相当。`#cairn.table(security=...)` の枠は予約済み
+  に相当。`#aya.table(security=...)` の枠は予約済み
 - **PostgreSQL の DDL 出力** — 型対応表はあるが `generate` は SQLite 向け。
   `ALTER TABLE` が素直な分、SQLite より書く量は少ない
 - **マイグレーションの適用** — `.sql` を `Executor` で流す `migrate` サブコマンドがない
-- **複合主キーと複数列のユニーク制約** — `#cairn.id` は 1 列だけを指す
+- **複合主キーと複数列のユニーク制約** — `#aya.id` は 1 列だけを指す
 - **サブクエリと CTE** — `RawExpr` にネストした SELECT のコンストラクタがない
 - **`RETURNING`** — DML は行数しか返さない
 
@@ -125,7 +125,7 @@ API のほとんどはこのどれかに従っています。
 [`moonbitlang/parser`](https://mooncakes.io/docs/moonbitlang/parser)
 で MoonBit ソースをパースします。属性は `Attribute.raw` の生テキストから読みます。
 ユーザ定義名前空間では `parsed` が埋まらず、`name()` は名前空間を落としてしまう
-（`#cairn.id` も `#morm.id` も `"id"` と報告する）からです。
+（`#aya.id` も `#morm.id` も `"id"` と報告する）からです。
 
 文字列を受け取って文字列を返す設計にしてあり、ファイル IO は CLI 側に残しています。
 そのおかげでパース・降下・出力のパイプライン全体をファイルシステムに触れずに

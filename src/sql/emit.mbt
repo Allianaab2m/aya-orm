@@ -12,7 +12,7 @@ pub(all) suberror StatementError {
   EmptyUpdate(table~ : String)
   /// Two tables in one query claim the same alias, so column references in the
   /// generated SQL would be ambiguous. Self-joins need distinct aliases, which
-  /// cairn cannot yet assign (see `Table` docs).
+  /// aya cannot yet assign (see `Table` docs).
   DuplicateAlias(tbl~ : String)
 } derive(Debug)
 

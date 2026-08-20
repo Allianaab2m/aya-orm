@@ -1,12 +1,12 @@
 // What can be checked without a server is the translation either side of the
 // wire, and that is where the driver's own judgement lives. The statements
-// themselves are cairn's, and the protocol is the client's; neither is retested
+// themselves are aya's, and the protocol is the client's; neither is retested
 // here.
 
 ///|
 /// The integer width is the server's to choose, not the value's.
 ///
-/// This is the reason `Param` exists at all: cairn only has `VInt(Int64)`, so
+/// This is the reason `Param` exists at all: aya only has `VInt(Int64)`, so
 /// without it every integer would claim to be an `int8` and every `int4`
 /// column would reject it.
 test "an integer parameter fits any integer column" {
@@ -87,7 +87,7 @@ test "the other scalars keep the client's own type rules" {
 }
 
 ///|
-/// cairn hands a driver one flat parameter list, and it comes back out in the
+/// aya hands a driver one flat parameter list, and it comes back out in the
 /// same order — the placeholders are numbered, so order is all that connects
 /// the two.
 test "the parameter list keeps its order" {
@@ -107,9 +107,9 @@ test "config fills in the usual defaults" {
   let c = config(host="localhost", user="alliana")
   inspect(c.database, content="alliana")
   inspect(c.port, content="5432")
-  inspect(c.application_name, content="cairn")
+  inspect(c.application_name, content="aya")
   inspect(
-    config(host="localhost", user="alliana", database="cairn").database,
-    content="cairn",
+    config(host="localhost", user="alliana", database="aya").database,
+    content="aya",
   )
 }

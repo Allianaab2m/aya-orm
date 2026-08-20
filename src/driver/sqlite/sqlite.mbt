@@ -1,12 +1,12 @@
 ///|
-/// A cairn connection backed by `moonbit-community/sqlite3`.
+/// A aya connection backed by `moonbit-community/sqlite3`.
 ///
 /// That binding is deliberately thin: it hands back whatever you ask a column
 /// for and has no public way to report a column's type or to say `NULL`. Both
 /// gaps are closed here rather than worked around, because the alternative in
 /// each case is a wrong answer rather than an error.
 ///
-/// Reading, the driver declares `RowShape::Typed`, so cairn writes the SELECT
+/// Reading, the driver declares `RowShape::Typed`, so aya writes the SELECT
 /// list as `typeof(e), e` pairs and SQLite itself names the storage class of
 /// every value. Writing, a `VNull` parameter is simply not bound: SQLite reads
 /// an unbound parameter as NULL, which is the one way to send one through this
@@ -41,7 +41,7 @@ fn Sqlite::close_quietly(self : Sqlite) -> Unit {
 }
 
 ///|
-/// The underlying connection, for the things cairn does not model.
+/// The underlying connection, for the things aya does not model.
 pub fn Sqlite::connection(self : Sqlite) -> @sqlite3.Connection {
   self.conn
 }
@@ -66,7 +66,7 @@ pub impl @sql.Executor for Sqlite with fn dialect(_self) {
 }
 
 ///|
-/// The binding reports neither a column's type nor its nullness, so cairn is
+/// The binding reports neither a column's type nor its nullness, so aya is
 /// asked to write the SELECT list with both alongside each value.
 pub impl @sql.Executor for Sqlite with fn row_shape(_self) {
   @sql.RowShape::Typed

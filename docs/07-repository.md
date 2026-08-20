@@ -2,8 +2,8 @@
 
 [← Execution](06-execution.md) · [Schema →](08-schema.md)
 
-cairn provides nothing for this. A repository is ordinary application code, and
-this chapter is about the shape that code takes when cairn is underneath it.
+aya provides nothing for this. A repository is ordinary application code, and
+this chapter is about the shape that code takes when aya is underneath it.
 
 > The code here is illustrative rather than lifted from `src/example`, which
 > keeps only two entities. See [design notes](09-design.md) for why.
@@ -16,7 +16,7 @@ per aggregate, in domain vocabulary — and that is the better shape anyway:
 `unassigned` says something a generic `find_by(criteria)` cannot.
 
 ```moonbit
-// Port: the domain's vocabulary. No dependency on cairn.
+// Port: the domain's vocabulary. No dependency on aya.
 pub(open) trait TicketRepository {
   async fn find(Self, Int) -> Ticket?
   async fn save(Self, Ticket) -> Unit

@@ -1,5 +1,5 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "Allianaab2m/cairn/sql"
+package "Allianaab2m/aya/sql"
 
 import {
   "moonbitlang/core/debug",

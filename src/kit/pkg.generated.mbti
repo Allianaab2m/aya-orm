@@ -1,14 +1,14 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "Allianaab2m/cairn/kit"
+package "Allianaab2m/aya/kit"
 
 import {
-  "Allianaab2m/cairn/ddl",
-  "Allianaab2m/cairn/sql",
+  "Allianaab2m/aya/ddl",
+  "Allianaab2m/aya/sql",
   "moonbitlang/core/debug",
 }
 
 // Values
-pub const CONFIG_FILE : String = "cairn.json"
+pub const CONFIG_FILE : String = "aya.json"
 
 pub const JOURNAL_VERSION : String = "1"
 

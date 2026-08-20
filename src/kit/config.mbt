@@ -1,6 +1,6 @@
 ///|
 pub(all) suberror KitError {
-  /// `cairn.json` could not be read.
+  /// `aya.json` could not be read.
   BadConfig(reason~ : String)
   /// `meta/_journal.json` could not be read.
   BadJournal(reason~ : String)
@@ -16,7 +16,7 @@ pub(all) suberror KitError {
 /// each developer typing them the same way.
 pub(all) struct Config {
   dialect : @sql.Dialect
-  /// Files or directories to scan for `#cairn.table` declarations.
+  /// Files or directories to scan for `#aya.table` declarations.
   schema : Array[String]
   /// Directory holding the migrations and their snapshots.
   out : String
@@ -24,7 +24,7 @@ pub(all) struct Config {
 
 ///|
 /// The name looked for when `--config` is not given.
-pub const CONFIG_FILE = "cairn.json"
+pub const CONFIG_FILE = "aya.json"
 
 ///|
 /// What a project gets without a config file.
@@ -77,7 +77,7 @@ pub fn Config::from_json_string(text : String) -> Config raise KitError {
 }
 
 ///|
-/// Render a config file, for `cairn-kit init`.
+/// Render a config file, for `aya-kit init`.
 pub fn Config::to_json_string(self : Config) -> String {
   let schema = self.schema.map(s => "\n    \{quote(s)}").join(",")
   let list = if self.schema.is_empty() { "[]" } else { "[\{schema}\n  ]" }

@@ -2,7 +2,7 @@
 
 [← Aggregation](05-aggregate.md) · [Repository →](07-repository.md)
 
-Everything above this chapter is dialect-agnostic: cairn builds SQL text plus
+Everything above this chapter is dialect-agnostic: aya builds SQL text plus
 an ordered parameter list. This chapter is about handing that pair to something
 that can run it.
 
@@ -28,7 +28,7 @@ were built for. Bracketing a transaction is a separate capability, and a
 `Driver` is an `Executor` that also has it.
 
 **The split is the point.** `run` / `one` / `first` are bounded by `Executor`,
-and everything cairn hands to the body of a transaction is an `Executor` and
+and everything aya hands to the body of a transaction is an `Executor` and
 nothing more — so code running inside a transaction cannot commit or roll back
 the transaction it is running inside. Only `Tx` sends those three statements.
 
@@ -209,7 +209,7 @@ not fitting the type the entity declared for it.
 })
 
 @postgres.with_connection(
-  @postgres.config(host="localhost", user="alliana", database="cairn"),
+  @postgres.config(host="localhost", user="alliana", database="aya"),
   db => {
     let tickets = @sql.from(TicketRow::table()).run(db)
     ...
@@ -223,11 +223,11 @@ protocol underneath it. Nothing happens unless something drives that pump, so
 it is spawned for you and the connection is closed however the body ends.
 
 The two translations either side of the wire are the whole of a driver. Going
-out, the *server* decides what type each placeholder has, so cairn's
+out, the *server* decides what type each placeholder has, so aya's
 `VInt(Int64)` is encoded at whatever width the column turned out to be. Coming
 back, the row description names each column's type, so a `SqlValue` of the
-matching shape can be built — cairn's decoders match on the constructor, and a
-guess would be a silent wrong answer. PostgreSQL types cairn has no shape for
+matching shape can be built — aya's decoders match on the constructor, and a
+guess would be a silent wrong answer. PostgreSQL types aya has no shape for
 (dates, timestamps, uuid) are refused by name rather than guessed at; cast them
 in the query, as in `submitted_at::text`.
 
@@ -243,7 +243,7 @@ Ask it for a column as an `Int` and a NULL arrives as `0` — a real value, and
 the wrong one. That is a silent wrong answer in the middle of an otherwise
 type-safe path, so the type is asked of the database rather than guessed.
 
-A driver declares which shape of SELECT list it needs, and cairn writes it:
+A driver declares which shape of SELECT list it needs, and aya writes it:
 
 ```sql
 -- RowShape::Plain, what a driver that can describe a result row needs

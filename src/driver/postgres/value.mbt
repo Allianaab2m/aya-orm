@@ -1,4 +1,4 @@
-// The two conversions between cairn's `SqlValue` and the wire.
+// The two conversions between aya's `SqlValue` and the wire.
 //
 // They are not symmetric, and that asymmetry is the whole content of this file.
 // Going out, the *server* decides what type a placeholder has: it infers it
@@ -9,7 +9,7 @@
 // "here is a type, produce the matching `SqlValue`".
 
 ///|
-/// PostgreSQL type OIDs, as far as cairn's `SqlValue` reaches.
+/// PostgreSQL type OIDs, as far as aya's `SqlValue` reaches.
 ///
 /// Spelled out rather than imported: the client keeps its own copies private,
 /// and these five numbers are fixed by PostgreSQL's catalog, not by the client.
@@ -53,14 +53,14 @@ const JSONB_OID : UInt = 3802
 ///
 /// The client ships `ToSql` for each MoonBit scalar, but each of those is
 /// pinned to one PostgreSQL type — `Int` encodes `int2`/`int4` and `Int64`
-/// encodes `int8`. cairn erased that distinction upstream: every integer is a
+/// encodes `int8`. aya erased that distinction upstream: every integer is a
 /// `VInt(Int64)` by the time it reaches a driver. So the wrapper exists to put
 /// the distinction back, choosing the encoding from the type the server
 /// inferred rather than from how wide the MoonBit value happens to be.
 pub(all) struct Param(@sql.SqlValue) derive(Eq, Debug)
 
 ///|
-/// Wrap cairn's parameter list for the client.
+/// Wrap aya's parameter list for the client.
 pub fn params(values : Array[@sql.SqlValue]) -> Array[&@client.ToSql] {
   values.map(v => Param(v) as &@client.ToSql)
 }
@@ -118,9 +118,9 @@ pub impl @client.ToSql for Param with fn to_sql(self, type_, buf) {
 /// Read one column of a result row as the `SqlValue` its PostgreSQL type calls
 /// for.
 ///
-/// The column's own type decides, not the value: a driver has to hand cairn's
+/// The column's own type decides, not the value: a driver has to hand aya's
 /// decoders the shape they match on, and `SqlDecode for Int` only accepts
-/// `VInt`. Types cairn has no shape for are refused by name rather than
+/// `VInt`. Types aya has no shape for are refused by name rather than
 /// guessed at, because the guess would be a silent wrong answer inside an
 /// otherwise type-safe path.
 fn cell(
@@ -165,7 +165,7 @@ fn cell(
         } else {
           raise @sql.QueryFailed(
             sql~,
-            message="column \{index} has PostgreSQL type \"\{type_.name}\", which cairn has no SqlValue for; cast it in the query, for example `\{row.columns[index].name}::text`",
+            message="column \{index} has PostgreSQL type \"\{type_.name}\", which aya has no SqlValue for; cast it in the query, for example `\{row.columns[index].name}::text`",
           )
         }
     }
@@ -192,7 +192,7 @@ fn is_text(type_ : @client.Type) -> Bool {
 }
 
 ///|
-/// Restate a client failure as one of cairn's.
+/// Restate a client failure as one of aya's.
 ///
 /// `DbError` is the whole vocabulary a driver is allowed to fail in, so
 /// everything the client can raise has to land in one of its four cases. The

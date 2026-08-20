@@ -334,7 +334,7 @@ async test "a nested failure undoes the enclosing transaction, against SQLite" {
 }
 
 ///|
-/// A statement the database rejects comes back as cairn's own failure, with
+/// A statement the database rejects comes back as aya's own failure, with
 /// SQLite's message rather than only a result code.
 async test "a broken statement fails as a DbError" {
   with_connection(":memory:", db => {

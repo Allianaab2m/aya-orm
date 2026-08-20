@@ -47,7 +47,7 @@ flowchart LR
 | 2 | `Selection::new` made public | generated code lives in another package and has to build one |
 | 3 | `Binding[In]` added, `Table { .., write }` | INSERT needs the value-to-row direction |
 | 4 | `Query { .., joins }`, `Query::join` makes `Cols` a tuple | more than one table |
-| 5 | `Binding::contramap` added, generator emits `table_of`, attribute became `#cairn.table` | the row type and the domain type are different things, and the mapping is written by hand |
+| 5 | `Binding::contramap` added, generator emits `table_of`, attribute became `#aya.table` | the row type and the domain type are different things, and the mapping is written by hand |
 | 6 | `left_join` returns the abstract `Nullable[C, R]`, `Selection::optional` added | make outer-join nullability enforced by the type |
 | 7 | `Driver` trait and `transaction`, `run` / `one` / `first` on every statement | build the SQL *and* run it |
 | 8 | `split2` and `Query::map_cols` added | stand in for the lambda destructuring MoonBit lacks |
@@ -98,12 +98,12 @@ exist so that the unfiltered case is visible at the call site by name.
 - **Aliasing and self-joins** — the `Column`s inside `Cols` bake in the alias,
   so `Table` would need to hold `cols` as `(String) -> Cols`
 - **A security type parameter** — `Table[Sec, Cols, R]`, matching Acadia's
-  `Table Unrestricted Food`. The `#cairn.table(security=...)` slot is reserved
+  `Table Unrestricted Food`. The `#aya.table(security=...)` slot is reserved
 - **PostgreSQL DDL** — the type table is there, but `generate` emits SQLite.
   Postgres needs less work than SQLite did, since its `ALTER TABLE` is honest
 - **Applying migrations** — no `migrate` subcommand runs the `.sql` files
   through an `Executor` yet
-- **Composite primary keys and multi-column unique constraints** — `#cairn.id`
+- **Composite primary keys and multi-column unique constraints** — `#aya.id`
   marks one column
 - **Subqueries and CTEs** — `RawExpr` has no constructor for a nested SELECT
 - **`RETURNING`** — DML reports a row count and nothing else
@@ -129,7 +129,7 @@ The generator parses MoonBit source with
 [`moonbitlang/parser`](https://mooncakes.io/docs/moonbitlang/parser).
 Attributes are read from the raw text in `Attribute.raw`, because `parsed` is
 not populated for user-defined namespaces and `name()` drops the namespace
-(`#cairn.id` and `#morm.id` both report `"id"`).
+(`#aya.id` and `#morm.id` both report `"id"`).
 
 String in, string out: file IO stays in the CLI, so the whole parse/lower/emit
 pipeline is testable without touching the filesystem.

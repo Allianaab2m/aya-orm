@@ -2,7 +2,7 @@
 
 [← README](../README.md) · [Query →](02-query.md)
 
-A `Table` is everything cairn needs to read a row and to write one. Nothing
+A `Table` is everything aya needs to read a row and to write one. Nothing
 else in the library reaches for a schema: `from`, `insert`, `update` and
 `delete` all start from a `Table` and get their column names, aliases and
 codecs from it.
@@ -140,9 +140,9 @@ The annotated struct is **the flat shape of one row** — not the thing the rest
 of the program works with.
 
 ```moonbit
-#cairn.table(name="users", alias="u")
+#aya.table(name="users", alias="u")
 pub(all) struct User {
-  #cairn.id
+  #aya.id
   id : Int
   name : String
   age : Int
@@ -152,14 +152,14 @@ pub(all) struct User {
 
 | Attribute | Argument | Default | Effect |
 |---|---|---|---|
-| `#cairn.table` | `name=` | required | table name in the database |
+| `#aya.table` | `name=` | required | table name in the database |
 | | `alias=` | first letter of `name` | alias used in `FROM ... AS` |
 | | `cols=` | `<TypeName>Cols` | name of the generated column-handle struct |
-| `#cairn.id` | — | — | marks the primary key; at most one per struct |
-| `#cairn.column` | `name=` | field name | column name in the database |
+| `#aya.id` | — | — | marks the primary key; at most one per struct |
+| `#aya.column` | `name=` | field name | column name in the database |
 
 Unknown attribute names are ignored on purpose, so adding one later will not
-break an older generator. `#cairn.column` and `#cairn.index` take further
+break an older generator. `#aya.column` and `#aya.index` take further
 arguments that describe storage rather than the generated MoonBit — SQL types,
 defaults, constraints, foreign keys — collected in
 [Schema and migrations](08-schema.md).
@@ -168,8 +168,8 @@ defaults, constraints, foreign keys — collected in
 struct is read-only to them.
 
 ```bash
-cairn-kit codegen                                   # every entity file in cairn.json
-cairn-kit codegen src/app/entities.mbt -o src/app/entities.g.mbt   # one file
+aya-kit codegen                                   # every entity file in aya.json
+aya-kit codegen src/app/entities.mbt -o src/app/entities.g.mbt   # one file
 ```
 
 | Generated | Type |
@@ -185,21 +185,21 @@ cairn-kit codegen src/app/entities.mbt -o src/app/entities.g.mbt   # one file
 The output is ordinary MoonBit source: readable, diffable, and checked by the
 compiler like anything else.
 
-Downstream, a `pre-build` hook in `moon.pkg` can call a prebuilt `cairn-kit`.
+Downstream, a `pre-build` hook in `moon.pkg` can call a prebuilt `aya-kit`.
 **A hook that runs `moon run` inside the same module recurses forever**, so the
 examples in this repository are generated explicitly.
 
 ## When the row type and the domain entity do not line up
 
-This is the case cairn is built around. If the domain models its states as a
+This is the case aya is built around. If the domain models its states as a
 sum type, it will not be 1-1 with the table: the row has to leave
 `submitted_at` and `tracking` nullable, while the domain type can make each
 state's fields unconditional.
 
 ```moonbit
-#cairn.table(name="orders", alias="o", cols="OrderCols")
+#aya.table(name="orders", alias="o", cols="OrderCols")
 pub(all) struct OrderRow {
-  #cairn.id
+  #aya.id
   id : Int
   items : Int
   status : String

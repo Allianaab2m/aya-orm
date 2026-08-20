@@ -138,9 +138,9 @@ pub impl @sql.SqlDecode for AccountId with fn decode(v, k) {
 ありません。
 
 ```moonbit
-#cairn.table(name="users", alias="u")
+#aya.table(name="users", alias="u")
 pub(all) struct User {
-  #cairn.id
+  #aya.id
   id : Int
   name : String
   age : Int
@@ -150,14 +150,14 @@ pub(all) struct User {
 
 | 属性 | 引数 | 既定値 | 効果 |
 |---|---|---|---|
-| `#cairn.table` | `name=` | 必須 | データベース上のテーブル名 |
+| `#aya.table` | `name=` | 必須 | データベース上のテーブル名 |
 | | `alias=` | `name` の頭 1 文字 | `FROM ... AS` で使うエイリアス |
 | | `cols=` | `<型名>Cols` | 生成されるカラムハンドル構造体の名前 |
-| `#cairn.id` | — | — | 主キー。1 構造体につき最大 1 つ |
-| `#cairn.column` | `name=` | フィールド名 | データベース上の列名 |
+| `#aya.id` | — | — | 主キー。1 構造体につき最大 1 つ |
+| `#aya.column` | `name=` | フィールド名 | データベース上の列名 |
 
 未知の属性名は意図的に無視します。あとから属性を追加しても古いジェネレータを
-壊さないためです。`#cairn.column` と `#cairn.index` には、生成される MoonBit では
+壊さないためです。`#aya.column` と `#aya.index` には、生成される MoonBit では
 なく格納のされ方を指定する引数（SQL 型・既定値・制約・外部キー）もあります。
 それらは[スキーマとマイグレーション](08-schema.md)にまとめてあります。
 
@@ -165,8 +165,8 @@ pub(all) struct User {
 ただの `pub` 構造体では読み取り専用になってしまいます。
 
 ```bash
-cairn-kit codegen                                   # cairn.json のエンティティ全部
-cairn-kit codegen src/app/entities.mbt -o src/app/entities.g.mbt   # 1 ファイルだけ
+aya-kit codegen                                   # aya.json のエンティティ全部
+aya-kit codegen src/app/entities.mbt -o src/app/entities.g.mbt   # 1 ファイルだけ
 ```
 
 | 生成されるもの | 型 |
@@ -182,20 +182,20 @@ cairn-kit codegen src/app/entities.mbt -o src/app/entities.g.mbt   # 1 ファイ
 出力はふつうの MoonBit ソースです。読めて、diff が取れて、他のコードと同じように
 コンパイラに検査されます。
 
-利用側では `moon.pkg` の `pre-build` フックからビルド済みの `cairn-kit` を呼べます。
+利用側では `moon.pkg` の `pre-build` フックからビルド済みの `aya-kit` を呼べます。
 **同一モジュール内で `moon run` するフックは無限に再帰する**ので、このリポジトリの
 例は明示的に生成しています。
 
 ## 行型とドメインエンティティが食い違うとき
 
-cairn が念頭に置いているのはこの場合です。ドメインが状態を直和型で表すなら、
+aya が念頭に置いているのはこの場合です。ドメインが状態を直和型で表すなら、
 テーブルとは 1 対 1 になりません。行のほうは `submitted_at` と `tracking` を
 NULL 許容にせざるを得ない一方、ドメイン型は各状態のフィールドを無条件にできます。
 
 ```moonbit
-#cairn.table(name="orders", alias="o", cols="OrderCols")
+#aya.table(name="orders", alias="o", cols="OrderCols")
 pub(all) struct OrderRow {
-  #cairn.id
+  #aya.id
   id : Int
   items : Int
   status : String

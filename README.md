@@ -1,4 +1,4 @@
-# cairn
+# aya
 
 A thin, type-safe SQL toolkit for MoonBit.
 
@@ -40,25 +40,25 @@ come back.
 - **Typed at the column.** `Column[T]` carries a phantom `T`, so a
   `Column[Int]` will not accept a string and a `Column[String]` cannot be
   summed.
-- **Database-agnostic.** cairn produces SQL text plus an ordered parameter
+- **Database-agnostic.** aya produces SQL text plus an ordered parameter
   list. Anything that can run that pair is a driver; SQLite, PostgreSQL and a
   recording fake ship in `src/driver`.
 - **Generated, not reflected.** The generator emits ordinary MoonBit source you
   can read and diff. Nothing is discovered at runtime.
-- **The schema comes from the same source.** `cairn-kit` diffs your entities
+- **The schema comes from the same source.** `aya-kit` diffs your entities
   against the last snapshot and writes the migration — no connection needed.
 
 ## Install
 
 ```bash
-moon add Allianaab2m/cairn
+moon add Allianaab2m/aya
 ```
 
 ```moonbit
 // moon.pkg
 import {
-  "Allianaab2m/cairn/sql",
-  "Allianaab2m/cairn/driver/sqlite",
+  "Allianaab2m/aya/sql",
+  "Allianaab2m/aya/driver/sqlite",
 }
 ```
 
@@ -70,9 +70,9 @@ libraries are native FFI, and so is `moonbitlang/async` beneath them.
 **1. Declare the row type.** The annotated struct is the flat shape of one row.
 
 ```moonbit
-#cairn.table(name="users", alias="u")
+#aya.table(name="users", alias="u")
 pub(all) struct User {
-  #cairn.id
+  #aya.id
   id : Int
   name : String
   age : Int
@@ -83,12 +83,12 @@ pub(all) struct User {
 **2. Generate.**
 
 ```bash
-cairn-kit codegen
+aya-kit codegen
 ```
 
 You get `UserCols`, `User::cols()`, `User::all()`, `User::binding()`,
 `User::table()`, `User::table_of()` and `User::primary_key_name()`.
-`cairn-kit generate` turns the same annotations into the table itself — see
+`aya-kit generate` turns the same annotations into the table itself — see
 [Schema and migrations](docs/08-schema.md).
 
 **3. Query, and run it.**
@@ -182,8 +182,8 @@ exists only to keep comparisons honest.
 | [4. JOIN](docs/04-join.md) | inner and outer joins, and naming the joined shape |
 | [5. Aggregation](docs/05-aggregate.md) | `Reducer`, `reduce`, `group_by` |
 | [6. Execution](docs/06-execution.md) | `Executor`, `Driver`, `Tx`, transactions, drivers |
-| [7. Repository](docs/07-repository.md) | the pattern cairn is designed to sit under |
-| [8. Schema and migrations](docs/08-schema.md) | DDL from the same annotations, and `cairn-kit` |
+| [7. Repository](docs/07-repository.md) | the pattern aya is designed to sit under |
+| [8. Schema and migrations](docs/08-schema.md) | DDL from the same annotations, and `aya-kit` |
 | [9. Design notes](docs/09-design.md) | why the types are shaped this way, and what is missing |
 
 ## Package layout
@@ -193,7 +193,7 @@ src/sql/            core library — expressions, projection, query, DML, emissi
 src/gen/            entity parsing — attributes to IR — and column-handle emission
 src/ddl/            IR to snapshot, diff, and DDL
 src/kit/            config and migration planning, all of it pure
-src/kit/cmd/        the CLI (cairn-kit)
+src/kit/cmd/        the CLI (aya-kit)
 src/driver/sqlite/  SQLite driver
 src/driver/postgres/PostgreSQL driver
 src/driver/fake/    recording fake, for testing repositories

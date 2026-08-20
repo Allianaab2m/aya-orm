@@ -1,12 +1,12 @@
 ///|
 /// A driver that records what it was asked to run and replays canned results.
 ///
-/// It exercises cairn's own layer — SQL text, parameter order, decoding,
+/// It exercises aya's own layer — SQL text, parameter order, decoding,
 /// transaction bracketing — without pulling in a real database. It is not a
 /// SQL engine and does not pretend to be one, so the results it hands back are
 /// whatever the test supplied, in the order the test supplied them.
 ///
-/// The same reasoning applies outside cairn: a repository written against
+/// The same reasoning applies outside aya: a repository written against
 /// `@sql.Driver` can be tested against this rather than against a database.
 pub struct FakeDb {
   /// What the driver was asked to do, in order.

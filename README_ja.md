@@ -1,4 +1,4 @@
-# cairn
+# aya
 
 A thin, type-safe SQL toolkit for MoonBit.
 
@@ -38,25 +38,25 @@ alice (30)・bob (17)・carol (42)・論理削除済みの dave (25) を持つ `
   変更追跡もありません。クエリは値であり、実行はそれとは別の一手です。
 - **列の単位で型が付く。** `Column[T]` は幽霊型 `T` を持つので、`Column[Int]` に
   文字列は渡せず、`Column[String]` は合計できません。
-- **データベースに依存しない。** cairn が作るのは SQL 文字列と順序付きパラメータ列
+- **データベースに依存しない。** aya が作るのは SQL 文字列と順序付きパラメータ列
   だけです。その組を実行できるものがドライバであり、SQLite・PostgreSQL・記録用の
   フェイクを `src/driver` に同梱しています。
 - **リフレクションではなく生成。** ジェネレータが吐くのは読めて diff の取れる
   ふつうの MoonBit ソースです。実行時に何かを探索することはありません。
-- **スキーマも同じ定義から。** `cairn-kit` がエンティティと直前のスナップショットを
+- **スキーマも同じ定義から。** `aya-kit` がエンティティと直前のスナップショットを
   比較してマイグレーションを書きます。データベースへの接続は要りません。
 
 ## 導入
 
 ```bash
-moon add Allianaab2m/cairn
+moon add Allianaab2m/aya
 ```
 
 ```moonbit
 // moon.pkg
 import {
-  "Allianaab2m/cairn/sql",
-  "Allianaab2m/cairn/driver/sqlite",
+  "Allianaab2m/aya/sql",
+  "Allianaab2m/aya/driver/sqlite",
 }
 ```
 
@@ -69,9 +69,9 @@ import {
 **1. 行型を書く。** 注釈を付けた構造体が「1 行の平坦な形」です。
 
 ```moonbit
-#cairn.table(name="users", alias="u")
+#aya.table(name="users", alias="u")
 pub(all) struct User {
-  #cairn.id
+  #aya.id
   id : Int
   name : String
   age : Int
@@ -82,7 +82,7 @@ pub(all) struct User {
 **2. 生成する。**
 
 ```bash
-cairn-kit codegen
+aya-kit codegen
 ```
 
 `UserCols`, `User::cols()`, `User::all()`, `User::binding()`, `User::table()`,
@@ -180,8 +180,8 @@ classDiagram
 | [4. JOIN](docs/ja/04-join.md) | 内部結合と外部結合、結合後の形に名前を付ける |
 | [5. 集約](docs/ja/05-aggregate.md) | `Reducer` / `reduce` / `group_by` |
 | [6. 実行](docs/ja/06-execution.md) | `Executor` / `Driver` / `Tx`、トランザクション、ドライバ |
-| [7. Repository](docs/ja/07-repository.md) | cairn が下敷きになることを想定したパターン |
-| [8. スキーマとマイグレーション](docs/ja/08-schema.md) | 同じ注釈から DDL を出す `cairn-kit` |
+| [7. Repository](docs/ja/07-repository.md) | aya が下敷きになることを想定したパターン |
+| [8. スキーマとマイグレーション](docs/ja/08-schema.md) | 同じ注釈から DDL を出す `aya-kit` |
 | [9. 設計ノート](docs/ja/09-design.md) | なぜこの型なのか、何が足りないのか |
 
 ## パッケージ構成
@@ -191,7 +191,7 @@ src/sql/            コアライブラリ — 式・射影・クエリ・DML・S
 src/gen/            エンティティ解析 — 属性から IR — とカラムハンドル生成
 src/ddl/            IR からスナップショット・差分・DDL へ
 src/kit/            設定とマイグレーション計画（すべて純粋）
-src/kit/cmd/        CLI (cairn-kit)
+src/kit/cmd/        CLI (aya-kit)
 src/driver/sqlite/  SQLite ドライバ
 src/driver/postgres/PostgreSQL ドライバ
 src/driver/fake/    記録用フェイク。Repository のテスト向け

@@ -5,18 +5,18 @@ fn snap(src : String) -> @ddl.Snapshot raise Error {
 
 ///|
 let accounts : String =
-  #|#cairn.table(name="accounts", alias="a")
+  #|#aya.table(name="accounts", alias="a")
   #|pub struct Account {
-  #|  #cairn.id
+  #|  #aya.id
   #|  id : Int
   #|}
   #|
 
 ///|
 let accounts_with_note : String =
-  #|#cairn.table(name="accounts", alias="a")
+  #|#aya.table(name="accounts", alias="a")
   #|pub struct Account {
-  #|  #cairn.id
+  #|  #aya.id
   #|  id : Int
   #|  note : String?
   #|}
@@ -83,7 +83,7 @@ test "an unreadable config says what is wrong with it" {
     e =>
       inspect(
         e,
-        content="cairn.json: dialect `mysql`: known dialects are `sqlite` and `postgres`",
+        content="aya.json: dialect `mysql`: known dialects are `sqlite` and `postgres`",
       )
   }
 }
