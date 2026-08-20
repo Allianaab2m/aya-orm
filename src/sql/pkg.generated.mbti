@@ -30,7 +30,7 @@ pub fn[A : SqlDecode, B : SqlDecode] sel2(Column[A], Column[B]) -> Selection[(A,
 
 pub fn[A : SqlDecode, B : SqlDecode, C : SqlDecode] sel3(Column[A], Column[B], Column[C]) -> Selection[(A, B, C)]
 
-pub fn[D : Driver, A] transaction(D, (D) -> A raise) -> A raise
+pub async fn[D : Driver, A] transaction(Tx[D], async (Tx[D]) -> A) -> A
 
 pub fn[C, R] update(Table[C, R], (C) -> Expr[Bool]) -> Update[C]
 
@@ -42,6 +42,7 @@ pub(all) suberror DbError {
   QueryFailed(sql~ : String, message~ : String)
   NotFound(sql~ : String)
   TooManyRows(sql~ : String, got~ : Int)
+  RollbackOnly(cause~ : Error)
 } derive(@debug.Debug)
 
 pub(all) suberror DecodeError {
@@ -105,7 +106,7 @@ pub struct Delete[Cols] {
   wheres : Array[RawExpr]
 }
 pub fn[C] Delete::filter(Self[C], (C) -> Expr[Bool]) -> Self[C]
-pub fn[D : Driver, C] Delete::run(Self[C], D) -> Int raise
+pub async fn[E : Executor, C] Delete::run(Self[C], E) -> Int
 pub fn[C] Delete::to_sql(Self[C], dialect? : Dialect) -> (String, Array[SqlValue])
 
 pub(all) enum Dialect {
@@ -148,7 +149,7 @@ pub struct Insert {
   columns : Array[String]
   rows : Array[Array[SqlValue]]
 }
-pub fn[D : Driver] Insert::run(Self, D) -> Int raise
+pub async fn[E : Executor] Insert::run(Self, E) -> Int
 pub fn Insert::to_sql(Self, dialect? : Dialect) -> (String, Array[SqlValue]) raise StatementError
 
 pub struct Join {
@@ -185,14 +186,14 @@ pub struct Query[Cols, A] {
   decode : (ArrayView[SqlValue]) -> A raise DecodeError
 }
 pub fn[C, A] Query::filter(Self[C, A], (C) -> Expr[Bool]) -> Self[C, A]
-pub fn[D : Driver, C, A] Query::first(Self[C, A], D) -> A? raise
+pub async fn[E : Executor, C, A] Query::first(Self[C, A], E) -> A?
 pub fn[C1, C2, R2, A] Query::join(Self[C1, A], Table[C2, R2], (C1, C2) -> Expr[Bool]) -> Self[(C1, C2), A]
 pub fn[C1, C2, R2, A] Query::left_join(Self[C1, A], Table[C2, R2], (C1, C2) -> Expr[Bool]) -> Self[(C1, Nullable[C2, R2]), A]
 pub fn[C, A] Query::limit(Self[C, A], Int) -> Self[C, A]
 pub fn[C, R, O] Query::map(Self[C, R], (C) -> Selection[O]) -> Self[C, O]
-pub fn[D : Driver, C, A] Query::one(Self[C, A], D) -> A raise
+pub async fn[E : Executor, C, A] Query::one(Self[C, A], E) -> A
 pub fn[C, A] Query::order_by(Self[C, A], (C) -> Array[OrderKey]) -> Self[C, A]
-pub fn[D : Driver, C, A] Query::run(Self[C, A], D) -> Array[A] raise
+pub async fn[E : Executor, C, A] Query::run(Self[C, A], E) -> Array[A]
 pub fn[C, A] Query::to_sql(Self[C, A], dialect? : Dialect, shape? : RowShape) -> (String, Array[SqlValue]) raise StatementError
 
 pub enum RawExpr {
@@ -239,6 +240,16 @@ pub struct Table[Cols, R] {
 }
 pub fn[C, R] Table::new(table_name~ : String, tbl~ : String, cols~ : C, all~ : Selection[R], write~ : Binding[R]) -> Self[C, R]
 
+pub struct Tx[D] {
+  db : D
+  mut depth : Int
+  mut failure : Error?
+}
+pub fn[D] Tx::driver(Self[D]) -> D
+pub fn[D] Tx::is_open(Self[D]) -> Bool
+pub fn[D] Tx::new(D) -> Self[D]
+pub impl[D : Driver] Executor for Tx[D]
+
 pub struct Update[Cols] {
   table_name : String
   tbl : String
@@ -247,7 +258,7 @@ pub struct Update[Cols] {
   wheres : Array[RawExpr]
 }
 pub fn[C] Update::filter(Self[C], (C) -> Expr[Bool]) -> Self[C]
-pub fn[D : Driver, C] Update::run(Self[C], D) -> Int raise
+pub async fn[E : Executor, C] Update::run(Self[C], E) -> Int
 pub fn[C, T : SqlEncode] Update::set(Self[C], (C) -> Column[T], T) -> Self[C]
 pub fn[C] Update::to_sql(Self[C], dialect? : Dialect) -> (String, Array[SqlValue]) raise StatementError
 
@@ -255,13 +266,17 @@ pub fn[C] Update::to_sql(Self[C], dialect? : Dialect) -> (String, Array[SqlValue
 pub type Row = ArrayView[SqlValue]
 
 // Traits
-pub(open) trait Driver {
-  fn query(Self, String, Array[SqlValue]) -> Array[Array[SqlValue]] raise DbError
-  fn execute(Self, String, Array[SqlValue]) -> Int raise DbError
+pub(open) trait Driver : Executor {
+  async fn begin(Self) -> Unit raise DbError
+  async fn commit(Self) -> Unit raise DbError
+  async fn rollback(Self) -> Unit raise DbError
+}
+
+pub(open) trait Executor {
+  async fn query(Self, String, Array[SqlValue], columns~ : Int) -> Array[Array[SqlValue]] raise DbError
+  async fn execute(Self, String, Array[SqlValue]) -> Int raise DbError
   fn dialect(Self) -> Dialect
-  fn begin(Self) -> Unit raise DbError
-  fn commit(Self) -> Unit raise DbError
-  fn rollback(Self) -> Unit raise DbError
+  fn row_shape(Self) -> RowShape = _
 }
 
 pub(open) trait SqlDecode {
