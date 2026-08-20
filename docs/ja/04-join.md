@@ -43,11 +43,11 @@ pub fn[C1, C2, R2, A] Query::left_join(
 `bob` は何も書いていません。2 種類の結合で扱いが分かれるのがこの行です。
 
 ```moonbit
-@sql.from(User::table())
-|> @sql.Query::join(Post::table(), (u, p) => u.id.eq_col(p.author_id))
-|> @sql.Query::filter(c => c.0.age.gte(18) & c.1.title.ne("draft"))
-|> @sql.Query::map(c => @sql.sel2(c.0.name, c.1.title))
-|> @sql.Query::order_by(c => [c.1.id.desc()])
+@aya.from(User::table())
+|> @aya.Query::join(Post::table(), (u, p) => u.id.eq_col(p.author_id))
+|> @aya.Query::filter(c => c.0.age.gte(18) & c.1.title.ne("draft"))
+|> @aya.Query::map(c => @aya.sel2(c.0.name, c.1.title))
+|> @aya.Query::order_by(c => [c.1.id.desc()])
 ```
 
 ```sql
@@ -75,7 +75,7 @@ alice/draft を落とします。`bob` はそもそも現れません。内部�
 
 Acadia の結合もタプルを作ります（`intersect : … -> Rows (a, b)`）。違うのは、Elm なら
 ラムダの引数位置で `\((a, b), c) -> …` と分解できるのに対し、**MoonBit にはその構文が
-ない**という点です。cairn は代わりに 2 つの道具を用意し、`.0.0` がライブラリの中に
+ない**という点です。aya は代わりに 2 つの道具を用意し、`.0.0` がライブラリの中に
 留まってあなたのコードに出てこないようにしています。
 
 ### 2 テーブル: `split2`
@@ -87,8 +87,8 @@ pub fn[A, B, R] split2((A, B) -> R) -> ((A, B)) -> R
 引数 2 つの関数を、コンビネータが期待する 1 引数関数に変換します。
 
 ```moonbit
-|> @sql.Query::filter(@sql.split2((u, p) => u.age.gte(18) & p.title.ne("draft")))
-|> @sql.Query::map(@sql.split2((_u, p) => @sql.sel(p.title)))
+|> @aya.Query::filter(@aya.split2((u, p) => u.age.gte(18) & p.title.ne("draft")))
+|> @aya.Query::map(@aya.split2((_u, p) => @aya.sel(p.title)))
 ```
 
 2 つで止めているのは意図的です。3 テーブルになると引数に位置指定の `_` が必要に
@@ -108,12 +108,12 @@ pub fn[C, D, A] Query::map_cols(Query[C, A], (C) -> D) -> Query[D, A]
 ```moonbit
 pub struct TicketJoin {
   ticket     : TicketCols
-  assignment : @sql.Nullable[AssignmentCols, AssignmentRow]
-  closure    : @sql.Nullable[ClosureCols, ClosureRow]
+  assignment : @aya.Nullable[AssignmentCols, AssignmentRow]
+  closure    : @aya.Nullable[ClosureCols, ClosureRow]
 }
 
-|> @sql.Query::map_cols(c => { ticket: c.0.0, assignment: c.0.1, closure: c.1 })
-|> @sql.Query::filter(j => j.ticket.id.eq(id))
+|> @aya.Query::map_cols(c => { ticket: c.0.0, assignment: c.0.1, closure: c.1 })
+|> @aya.Query::filter(j => j.ticket.id.eq(id))
 ```
 
 ネストは 1 行に封じ込められました。以降はすべて `c.0.1` ではなく `j.assignment` と
@@ -148,9 +148,9 @@ c.1.row()               // Selection[Post?]  -- 行全体がほしいとき
 テーブルの宣言どおりの型を保ちます。
 
 ```moonbit
-@sql.from(User::table())
-|> @sql.Query::left_join(Post::table(), (u, p) => u.id.eq_col(p.author_id))
-|> @sql.Query::map(c => @sql.sel(c.0.name).zip(c.1.row()))
+@aya.from(User::table())
+|> @aya.Query::left_join(Post::table(), (u, p) => u.id.eq_col(p.author_id))
+|> @aya.Query::map(c => @aya.sel(c.0.name).zip(c.1.row()))
 ```
 
 ```sql
@@ -198,7 +198,7 @@ pub fn[Out] Selection::optional_on(Selection[Out], key~ : Int) -> Selection[Out?
 「何も一致しなかった」を検査するのにちょうどよい形です。
 
 ```moonbit
-|> @sql.Query::filter(j => j.assignment.col(a => a.ticket_id).is_none())
+|> @aya.Query::filter(j => j.assignment.col(a => a.ticket_id).is_none())
 // -> WHERE ta."ticket_id" IS NULL
 ```
 
@@ -208,7 +208,7 @@ pub fn[Out] Selection::optional_on(Selection[Out], key~ : Int) -> Selection[Out?
 さもないと `u."id"` はデータベースが選んだどちらかを黙って指すことになります。
 `Query::to_sql` はそういう SQL を吐く代わりに `DuplicateAlias(tbl~)` を送出します。
 
-エイリアスはクエリごとではなくテーブルごとに固定（`#cairn.table(alias="u")`）です。
+エイリアスはクエリごとではなくテーブルごとに固定（`#aya.table(alias="u")`）です。
 **自己結合がまだ書けない**のはそのためで、[設計ノート](09-design.md)を参照してください。
 
 ---

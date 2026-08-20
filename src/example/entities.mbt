@@ -1,12 +1,12 @@
 ///|
 /// The entity is the only hand-written schema definition; `entities.g.mbt` is
-/// produced from it by `cairn-kit codegen`.
+/// produced from it by `aya-kit codegen`.
 ///
 /// `pub(all)` matters: callers outside this package build `User` values to
 /// hand to `insert`, and a plain `pub` struct is read-only to them.
-#cairn.table(name="users", alias="u")
+#aya.table(name="users", alias="u")
 pub(all) struct User {
-  #cairn.id
+  #aya.id
   id : Int
   name : String
   age : Int

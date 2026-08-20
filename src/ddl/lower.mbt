@@ -6,7 +6,7 @@
 /// SQL against SQL.
 pub fn snapshot_of(
   specs : Array[@gen.EntitySpec],
-  dialect~ : @sql.Dialect,
+  dialect~ : @aya.Dialect,
 ) -> Snapshot raise DdlError {
   let tables : Array[TableDef] = []
   for spec in specs {
@@ -22,7 +22,7 @@ pub fn snapshot_of(
 ///|
 fn table_of(
   spec : @gen.EntitySpec,
-  dialect : @sql.Dialect,
+  dialect : @aya.Dialect,
 ) -> TableDef raise DdlError {
   let columns : Array[ColumnDef] = []
   for f in spec.fields {
@@ -41,7 +41,7 @@ fn table_of(
 fn column_of(
   f : @gen.FieldSpec,
   table : String,
-  dialect : @sql.Dialect,
+  dialect : @aya.Dialect,
 ) -> ColumnDef raise DdlError {
   let ty = match f.sql_type {
     Some(t) => t
@@ -72,13 +72,13 @@ fn column_of(
 }
 
 ///|
-/// Map a MoonBit type to its column type, for the types cairn can store.
+/// Map a MoonBit type to its column type, for the types aya can store.
 ///
 /// The table is deliberately no wider than `SqlValue`: a type that is not one
-/// of these has to state its storage with `#cairn.column(type="...")`, because
+/// of these has to state its storage with `#aya.column(type="...")`, because
 /// guessing what a wrapper type wraps is how a domain `UserId` ends up in a
 /// TEXT column.
-pub fn infer_sql_type(ty : String, dialect : @sql.Dialect) -> String? {
+pub fn infer_sql_type(ty : String, dialect : @aya.Dialect) -> String? {
   let base = if ty.has_suffix("?") {
     ty[:ty.length() - 1].to_owned()
   } else {

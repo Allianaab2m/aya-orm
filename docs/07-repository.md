@@ -2,8 +2,8 @@
 
 [← Execution](06-execution.md) · [Schema →](08-schema.md)
 
-cairn provides nothing for this. A repository is ordinary application code, and
-this chapter is about the shape that code takes when cairn is underneath it.
+aya provides nothing for this. A repository is ordinary application code, and
+this chapter is about the shape that code takes when aya is underneath it.
 
 > The code here is illustrative rather than lifted from `src/example`, which
 > keeps only two entities. See [design notes](09-design.md) for why.
@@ -16,7 +16,7 @@ per aggregate, in domain vocabulary — and that is the better shape anyway:
 `unassigned` says something a generic `find_by(criteria)` cannot.
 
 ```moonbit
-// Port: the domain's vocabulary. No dependency on cairn.
+// Port: the domain's vocabulary. No dependency on aya.
 pub(open) trait TicketRepository {
   async fn find(Self, Int) -> Ticket?
   async fn save(Self, Ticket) -> Unit
@@ -25,15 +25,15 @@ pub(open) trait TicketRepository {
 
 // Adapter: generic over the driver, holding a Tx over one as its connection.
 struct SqlTickets[D] {
-  db : @sql.Tx[D]
+  db : @aya.Tx[D]
 }
 
-pub fn[D] SqlTickets::new(db : @sql.Tx[D]) -> SqlTickets[D] {
+pub fn[D] SqlTickets::new(db : @aya.Tx[D]) -> SqlTickets[D] {
   { db, }
 }
 
-pub impl[D : @sql.Driver] TicketRepository for SqlTickets[D] with fn find(self, id) {
-  (ticket_query() |> @sql.Query::filter(j => j.ticket.id.eq(id))).first(self.db)
+pub impl[D : @aya.Driver] TicketRepository for SqlTickets[D] with fn find(self, id) {
+  (ticket_query() |> @aya.Query::filter(j => j.ticket.id.eq(id))).first(self.db)
 }
 ```
 
@@ -62,16 +62,16 @@ ticket_closures(ticket_id -> ticket_assignments.ticket_id, resolution)
 ```moonbit
 pub struct TicketJoin {
   ticket     : TicketCols
-  assignment : @sql.Nullable[AssignmentCols, AssignmentRow]
-  closure    : @sql.Nullable[ClosureCols, ClosureRow]
+  assignment : @aya.Nullable[AssignmentCols, AssignmentRow]
+  closure    : @aya.Nullable[ClosureCols, ClosureRow]
 }
 
-pub fn ticket_query() -> @sql.Query[TicketJoin, Ticket] {
-  @sql.from(TicketRow::table())
-  |> @sql.Query::left_join(AssignmentRow::table(), (t, a) => t.id.eq_col(a.ticket_id))
-  |> @sql.Query::left_join(ClosureRow::table(), (c, cl) => c.0.id.eq_col(cl.ticket_id))
-  |> @sql.Query::map_cols(c => { ticket: c.0.0, assignment: c.0.1, closure: c.1 })
-  |> @sql.Query::map(j => TicketRow::all(j.ticket)
+pub fn ticket_query() -> @aya.Query[TicketJoin, Ticket] {
+  @aya.from(TicketRow::table())
+  |> @aya.Query::left_join(AssignmentRow::table(), (t, a) => t.id.eq_col(a.ticket_id))
+  |> @aya.Query::left_join(ClosureRow::table(), (c, cl) => c.0.id.eq_col(cl.ticket_id))
+  |> @aya.Query::map_cols(c => { ticket: c.0.0, assignment: c.0.1, closure: c.1 })
+  |> @aya.Query::map(j => TicketRow::all(j.ticket)
     .zip(j.assignment.row())
     .zip(j.closure.row())
     .map(assemble))
@@ -86,7 +86,7 @@ The nesting is confined to the one `map_cols` line. Everything after reads
 ```moonbit
 fn assemble(
   parts : ((TicketRow, AssignmentRow?), ClosureRow?),
-) -> Ticket raise @sql.DecodeError {
+) -> Ticket raise @aya.DecodeError {
   let ((base, assignment), closure) = parts
   match (assignment, closure) {
     (None, None) => Open(id=base.id, subject=base.subject)
@@ -95,7 +95,7 @@ fn assemble(
       Closed(id=base.id, subject=base.subject, assignee=a.assignee, resolution=c.resolution)
     // The FK chain makes a closure without an assignment impossible in the
     // database. The type cannot say so, hence the branch.
-    (None, Some(_)) => raise @sql.Malformed("ticket \{base.id}: closed but never assigned")
+    (None, Some(_)) => raise @aya.Malformed("ticket \{base.id}: closed but never assigned")
   }
 }
 ```
@@ -109,7 +109,7 @@ fn assemble(
 A domain-meaningful query is the *absence* of a phase row:
 
 ```moonbit
-|> @sql.Query::filter(j => j.assignment.col(a => a.ticket_id).is_none())
+|> @aya.Query::filter(j => j.assignment.col(a => a.ticket_id).is_none())
 // -> WHERE ta."ticket_id" IS NULL
 ```
 
@@ -119,20 +119,20 @@ Phase rows are immutable facts, so saving is additive: read what is there and
 insert only what is missing.
 
 ```moonbit
-pub impl[D : @sql.Driver] TicketRepository for SqlTickets[D] with fn save(self, ticket) {
-  @sql.transaction(self.db, conn => {
+pub impl[D : @aya.Driver] TicketRepository for SqlTickets[D] with fn save(self, ticket) {
+  @aya.transaction(self.db, conn => {
     let id = ticket.id()
     let before = self.find(id)
     if before is None {
-      @sql.insert(TicketRow::table(), { id, subject: ticket.subject() }).run(conn) |> ignore
+      @aya.insert(TicketRow::table(), { id, subject: ticket.subject() }).run(conn) |> ignore
     }
     let recorded_assignee = match before { Some(t) => t.assignee(); None => None }
     if ticket.assignee() is Some(assignee) && recorded_assignee is None {
-      @sql.insert(AssignmentRow::table(), { ticket_id: id, assignee }).run(conn) |> ignore
+      @aya.insert(AssignmentRow::table(), { ticket_id: id, assignee }).run(conn) |> ignore
     }
     let recorded_resolution = match before { Some(t) => t.resolution(); None => None }
     if ticket.resolution() is Some(resolution) && recorded_resolution is None {
-      @sql.insert(ClosureRow::table(), { ticket_id: id, resolution }).run(conn) |> ignore
+      @aya.insert(ClosureRow::table(), { ticket_id: id, resolution }).run(conn) |> ignore
     }
   })
 }
@@ -150,11 +150,11 @@ tables'**, and it is the part a generator cannot write.
 ## Wiring
 
 ```moonbit
-let db = @sql.Tx::new(@sqlite.Sqlite::open("app.db"))
+let db = @aya.Tx::new(@sqlite.Sqlite::open("app.db"))
 let tickets = SqlTickets::new(db)
 let users = SqlUsers::new(db)
 
-@sql.transaction(db, _ => {
+@aya.transaction(db, _ => {
   tickets.save(a)
   users.save(b)
 })   // one BEGIN, one COMMIT
@@ -167,13 +167,13 @@ transaction — the repositories above are the same objects throughout.
 
 ## Testing
 
-Because the adapter is generic over `D : @sql.Driver`, the fake goes straight
+Because the adapter is generic over `D : @aya.Driver`, the fake goes straight
 in — no database, no fixtures, and what gets asserted is the statements that
 went out:
 
 ```moonbit
 let db = @fake.FakeDb::new(counts=[1, 1])
-let repo = SqlTickets::new(@sql.Tx::new(db))
+let repo = SqlTickets::new(@aya.Tx::new(db))
 repo.save(Open(id=1, subject="printer on fire"))
 db.log  // ["BEGIN", "QUERY", "EXEC", "COMMIT"]
 ```

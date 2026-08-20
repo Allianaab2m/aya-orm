@@ -4,12 +4,12 @@
 
 The same annotations that produce column handles also produce the database
 schema. The row type is the single definition; the DDL is derived from it, and
-`cairn-kit` works out what changed since last time.
+`aya-kit` works out what changed since last time.
 
 ## Configuration
 
 ```json
-// cairn.json
+// aya.json
 {
   "dialect": "sqlite",
   "schema": ["src/example"],
@@ -18,16 +18,16 @@ schema. The row type is the single definition; the DDL is derived from it, and
 ```
 
 Every key is optional. `--schema`, `--out` and `--dialect` override the file for
-one run, and `cairn-kit init` writes a starting config.
+one run, and `aya-kit init` writes a starting config.
 
 ## Commands
 
 ```bash
-cairn-kit status      show the diff against the last snapshot, writing nothing
-cairn-kit generate    write the next migration from that diff
-cairn-kit ddl         print CREATE statements for the whole schema
-cairn-kit codegen     regenerate the .g.mbt companions
-cairn-kit init        write cairn.json and migrations/
+aya-kit status      show the diff against the last snapshot, writing nothing
+aya-kit generate    write the next migration from that diff
+aya-kit ddl         print CREATE statements for the whole schema
+aya-kit codegen     regenerate the .g.mbt companions
+aya-kit init        write aya.json and migrations/
 ```
 
 Inside this repository they run as `moon run src/kit/cmd -- <subcommand>`.
@@ -54,11 +54,11 @@ changelog. `--name` overrides them.
 ```
 $ moon run src/kit/cmd -- status
   add column users.nickname
-run `cairn-kit generate` to write the migration
+run `aya-kit generate` to write the migration
 
 $ moon run src/kit/cmd -- generate
   add column users.nickname
-cairn-kit: wrote migrations/0001_add_column_users_nickname.sql
+aya-kit: wrote migrations/0001_add_column_users_nickname.sql
 ```
 
 ```sql
@@ -83,14 +83,14 @@ A wrapper type has to say what it stores. Guessing is how a new type around an
 `Int` quietly ends up in a `TEXT` column.
 
 ```moonbit
-#cairn.table(name="accounts", alias="a")
-#cairn.index(name="idx_accounts_email", columns="email", unique="true")
+#aya.table(name="accounts", alias="a")
+#aya.index(name="idx_accounts_email", columns="email", unique="true")
 pub(all) struct Account {
-  #cairn.id
-  #cairn.column(sql_type="INTEGER")
+  #aya.id
+  #aya.column(sql_type="INTEGER")
   id : AccountId
   email : String
-  #cairn.column(sql_type="TEXT", default="'free'")
+  #aya.column(sql_type="TEXT", default="'free'")
   plan : Plan
 } derive(Debug, Eq)
 ```
@@ -112,10 +112,10 @@ the generated MoonBit looks like.
 
 | Attribute | On | Argument | Effect |
 |---|---|---|---|
-| `#cairn.index` | struct | `name=` | index name, defaulting to `idx_<table>_<columns>` |
+| `#aya.index` | struct | `name=` | index name, defaulting to `idx_<table>_<columns>` |
 | | | `columns=` | the **fields** to index, comma-separated |
 | | | `unique=` | `"true"` for a unique index |
-| `#cairn.column` | field | `sql_type=` | SQL type; required for a type `SqlValue` does not cover |
+| `#aya.column` | field | `sql_type=` | SQL type; required for a type `SqlValue` does not cover |
 | | | `default=` | SQL expression, emitted verbatim after `DEFAULT` |
 | | | `unique=` | `"true"` for a column-level `UNIQUE` |
 | | | `autoincrement=` | `"true"`, on an `INTEGER PRIMARY KEY` |
@@ -123,10 +123,10 @@ the generated MoonBit looks like.
 | | | `on_delete=` / `on_update=` | `cascade`, `restrict`, `set null`, `set default`, `no action` |
 
 An index names fields rather than columns, so renaming a column with
-`#cairn.column(name=...)` does not silently break its index.
+`#aya.column(name=...)` does not silently break its index.
 
 It is `sql_type=` rather than `type=` because `moon fmt` rewrites
-`#cairn.column(type="...")` into `##cairn.column(...)`, which then fails to lex.
+`#aya.column(type="...")` into `##aya.column(...)`, which then fails to lex.
 Writing `type=` is rejected with that explanation rather than accepted and
 broken by the next person who formats the file.
 
@@ -193,7 +193,7 @@ needs SQLite 3.35 (2021) or newer.
 
 PostgreSQL has its type table but no DDL emitter; `generate` targets SQLite.
 There is no `migrate` subcommand that runs the `.sql` files through an
-`Executor`. `#cairn.id` marks a single column, so composite primary keys and
+`Executor`. `#aya.id` marks a single column, so composite primary keys and
 multi-column unique constraints have no spelling.
 
 ---

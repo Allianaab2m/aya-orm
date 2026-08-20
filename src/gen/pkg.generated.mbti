@@ -1,5 +1,5 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "Allianaab2m/cairn/gen"
+package "Allianaab2m/aya/gen"
 
 import {
   "moonbitlang/core/debug",

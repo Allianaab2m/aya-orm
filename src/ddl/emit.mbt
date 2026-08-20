@@ -27,7 +27,7 @@ pub fn statements(
 ///|
 /// Quote an identifier, doubling any embedded quote.
 ///
-/// Both dialects cairn targets accept the SQL standard's double quotes, which
+/// Both dialects aya targets accept the SQL standard's double quotes, which
 /// is also what `sql/emit.mbt` writes for column references.
 pub fn ident(name : String) -> String {
   let buf = StringBuilder::new()

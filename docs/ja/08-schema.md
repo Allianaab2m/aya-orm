@@ -4,12 +4,12 @@
 
 カラムハンドルを生成するのと同じ注釈から、**データベースのスキーマそのもの**も
 出せます。定義は行型ひとつだけで、DDL はそこから導かれ、前回からの差分は
-`cairn-kit` が割り出します。
+`aya-kit` が割り出します。
 
 ## 設定
 
 ```json
-// cairn.json
+// aya.json
 {
   "dialect": "sqlite",
   "schema": ["src/example"],
@@ -18,16 +18,16 @@
 ```
 
 どのキーも省略できます。`--schema` / `--out` / `--dialect` でその場限りの上書きが
-でき、`cairn-kit init` が雛形を書き出します。
+でき、`aya-kit init` が雛形を書き出します。
 
 ## コマンド
 
 ```bash
-cairn-kit status      スナップショットとの差分を表示（何も書かない）
-cairn-kit generate    差分から次のマイグレーションを書き出す
-cairn-kit ddl         スキーマ全体の CREATE 文を標準出力へ
-cairn-kit codegen     .g.mbt を再生成する
-cairn-kit init        cairn.json と migrations/ を用意する
+aya-kit status      スナップショットとの差分を表示（何も書かない）
+aya-kit generate    差分から次のマイグレーションを書き出す
+aya-kit ddl         スキーマ全体の CREATE 文を標準出力へ
+aya-kit codegen     .g.mbt を再生成する
+aya-kit init        aya.json と migrations/ を用意する
 ```
 
 このリポジトリでは `moon run src/kit/cmd -- <サブコマンド>` で動きます。
@@ -54,11 +54,11 @@ migrations/
 ```
 $ moon run src/kit/cmd -- status
   add column users.nickname
-run `cairn-kit generate` to write the migration
+run `aya-kit generate` to write the migration
 
 $ moon run src/kit/cmd -- generate
   add column users.nickname
-cairn-kit: wrote migrations/0001_add_column_users_nickname.sql
+aya-kit: wrote migrations/0001_add_column_users_nickname.sql
 ```
 
 ```sql
@@ -83,14 +83,14 @@ ALTER TABLE "users" ADD "nickname" TEXT;
 包んだだけの新しい型が黙って `TEXT` 列になる事故が起きます。
 
 ```moonbit
-#cairn.table(name="accounts", alias="a")
-#cairn.index(name="idx_accounts_email", columns="email", unique="true")
+#aya.table(name="accounts", alias="a")
+#aya.index(name="idx_accounts_email", columns="email", unique="true")
 pub(all) struct Account {
-  #cairn.id
-  #cairn.column(sql_type="INTEGER")
+  #aya.id
+  #aya.column(sql_type="INTEGER")
   id : AccountId
   email : String
-  #cairn.column(sql_type="TEXT", default="'free'")
+  #aya.column(sql_type="TEXT", default="'free'")
   plan : Plan
 } derive(Debug, Eq)
 ```
@@ -112,21 +112,21 @@ CREATE UNIQUE INDEX "idx_accounts_email" ON "accounts" ("email");
 
 | 属性 | 位置 | 引数 | 効果 |
 |---|---|---|---|
-| `#cairn.index` | 構造体 | `name=` | 索引名。既定は `idx_<テーブル>_<列>` |
+| `#aya.index` | 構造体 | `name=` | 索引名。既定は `idx_<テーブル>_<列>` |
 | | | `columns=` | 索引する**フィールド**をカンマ区切りで |
 | | | `unique=` | `"true"` でユニーク索引 |
-| `#cairn.column` | フィールド | `sql_type=` | SQL 型。`SqlValue` の範囲外の型では必須 |
+| `#aya.column` | フィールド | `sql_type=` | SQL 型。`SqlValue` の範囲外の型では必須 |
 | | | `default=` | `DEFAULT` の後にそのまま出る SQL 式 |
 | | | `unique=` | `"true"` で列レベルの `UNIQUE` |
 | | | `autoincrement=` | `"true"`。`INTEGER PRIMARY KEY` に付ける |
 | | | `references=` | 外部キー。`"tickets.id"` の形式 |
 | | | `on_delete=` / `on_update=` | `cascade` / `restrict` / `set null` / `set default` / `no action` |
 
-索引は列名ではなくフィールド名で指定します。`#cairn.column(name=...)` で列名を
+索引は列名ではなくフィールド名で指定します。`#aya.column(name=...)` で列名を
 変えても索引が黙って壊れないようにするためです。
 
-`type=` ではなく `sql_type=` なのは、`moon fmt` が `#cairn.column(type="...")` を
-`##cairn.column(...)` に書き換えてしまい、以後 lex に失敗するためです。`type=` は
+`type=` ではなく `sql_type=` なのは、`moon fmt` が `#aya.column(type="...")` を
+`##aya.column(...)` に書き換えてしまい、以後 lex に失敗するためです。`type=` は
 受け付けずに理由を添えてエラーにしています（受け付けると、次に誰かが整形した
 瞬間に壊れます）。
 
@@ -192,7 +192,7 @@ SQLite 3.35（2021）以降が必要です。
 ## 未実装
 
 PostgreSQL は型対応表だけがあり、DDL の出力はまだです（`generate` は SQLite 向け）。
-`.sql` を `Executor` で流す `migrate` サブコマンドもありません。`#cairn.id` は
+`.sql` を `Executor` で流す `migrate` サブコマンドもありません。`#aya.id` は
 1 列だけを指すので、複合主キーと複数列のユニーク制約は書けません。
 
 ---

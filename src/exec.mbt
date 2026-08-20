@@ -1,5 +1,5 @@
 ///|
-/// Failures that come from the database rather than from cairn.
+/// Failures that come from the database rather than from aya.
 pub(all) suberror DbError {
   /// The driver could not talk to the database at all.
   ConnectionFailed(String)
@@ -20,7 +20,7 @@ pub(all) suberror DbError {
 /// built for. No transaction control.
 ///
 /// This is deliberately the smaller half of what a database connection can do.
-/// Everything cairn hands to the body of a transaction is an `Executor` and
+/// Everything aya hands to the body of a transaction is an `Executor` and
 /// nothing more, so a repository holding one cannot commit or roll back the
 /// transaction it is running inside.
 pub(open) trait Executor {
@@ -50,16 +50,16 @@ impl Executor with fn row_shape(_self) {
 }
 
 ///|
-/// What cairn needs from a database binding: an `Executor` that can also
+/// What aya needs from a database binding: an `Executor` that can also
 /// bracket a transaction.
 ///
-/// Everything above this trait is dialect-agnostic: cairn builds SQL text and
+/// Everything above this trait is dialect-agnostic: aya builds SQL text and
 /// an ordered parameter list, and a driver is whatever can run that pair. A
 /// driver is also the connection — pooling, if wanted, belongs outside.
 ///
 /// The three transaction statements are separated out from `Executor` because
-/// they are a capability, not a detail: `Tx` is the only thing in cairn that
-/// sends them, and nothing cairn hands to user code implements this trait.
+/// they are a capability, not a detail: `Tx` is the only thing in aya that
+/// sends them, and nothing aya hands to user code implements this trait.
 pub(open) trait Driver: Executor {
   async fn begin(Self) -> Unit raise DbError
   async fn commit(Self) -> Unit raise DbError
@@ -75,10 +75,10 @@ pub(open) trait Driver: Executor {
 /// instead of asking the database to `BEGIN` twice.
 ///
 /// ```moonbit nocheck
-/// let db = @sql.Tx::new(driver)
+/// let db = @aya.Tx::new(driver)
 /// let tickets = SqlTickets::new(db)
 /// let users = SqlUsers::new(db)
-/// @sql.transaction(db, _ => {
+/// @aya.transaction(db, _ => {
 ///   tickets.save(a) // both saves land in one transaction
 ///   users.save(b)
 /// })
@@ -104,7 +104,7 @@ pub fn[D] Tx::new(db : D) -> Tx[D] {
 }
 
 ///|
-/// The driver underneath, for the things cairn does not model.
+/// The driver underneath, for the things aya does not model.
 ///
 /// Reaching for this inside a `transaction` body means talking to the same
 /// connection the transaction is open on, which is usually what is wanted —

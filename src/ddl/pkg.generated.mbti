@@ -1,9 +1,9 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "Allianaab2m/cairn/ddl"
+package "Allianaab2m/aya/ddl"
 
 import {
-  "Allianaab2m/cairn/gen",
-  "Allianaab2m/cairn/sql",
+  "Allianaab2m/aya",
+  "Allianaab2m/aya/gen",
   "moonbitlang/core/debug",
 }
 
@@ -16,19 +16,19 @@ pub fn auto_name(Array[Change]) -> String
 
 pub fn creation_order(Array[TableDef]) -> Array[TableDef]
 
-pub fn dialect_name(@sql.Dialect) -> String
+pub fn dialect_name(@aya.Dialect) -> String
 
-pub fn dialect_of_name(String) -> @sql.Dialect raise DdlError
+pub fn dialect_of_name(String) -> @aya.Dialect raise DdlError
 
 pub fn diff(Snapshot, Snapshot) -> Array[Change]
 
 pub fn ident(String) -> String
 
-pub fn infer_sql_type(String, @sql.Dialect) -> String?
+pub fn infer_sql_type(String, @aya.Dialect) -> String?
 
 pub fn migration_sql(Array[String]) -> String
 
-pub fn snapshot_of(Array[@gen.EntitySpec], dialect~ : @sql.Dialect) -> Snapshot raise DdlError
+pub fn snapshot_of(Array[@gen.EntitySpec], dialect~ : @aya.Dialect) -> Snapshot raise DdlError
 
 pub fn split_migration(String) -> Array[String]
 
@@ -82,10 +82,10 @@ pub struct IndexDef {
 
 pub struct Snapshot {
   version : String
-  dialect : @sql.Dialect
+  dialect : @aya.Dialect
   tables : Array[TableDef]
 } derive(Eq, @debug.Debug)
-pub fn Snapshot::empty(@sql.Dialect) -> Self
+pub fn Snapshot::empty(@aya.Dialect) -> Self
 pub fn Snapshot::from_json_string(String) -> Self raise DdlError
 pub fn Snapshot::table(Self, String) -> TableDef?
 pub fn Snapshot::to_json_string(Self) -> String

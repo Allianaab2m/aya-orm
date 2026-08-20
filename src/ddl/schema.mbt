@@ -6,14 +6,14 @@
 pub const SNAPSHOT_VERSION = "1"
 
 ///|
-/// The database schema as cairn understands it, at one point in time.
+/// The database schema as aya understands it, at one point in time.
 ///
 /// This is the artefact that gets committed next to the migration it belongs
 /// to: the next `generate` diffs against it rather than against the database,
 /// so generating a migration needs no connection.
 pub struct Snapshot {
   version : String
-  dialect : @sql.Dialect
+  dialect : @aya.Dialect
   /// Sorted by name, so that reordering entity files cannot produce a diff.
   tables : Array[TableDef]
 } derive(Debug, Eq)
@@ -77,7 +77,7 @@ pub(all) suberror DdlError {
 
 ///|
 /// An empty schema: what the first migration is diffed against.
-pub fn Snapshot::empty(dialect : @sql.Dialect) -> Snapshot {
+pub fn Snapshot::empty(dialect : @aya.Dialect) -> Snapshot {
   { version: SNAPSHOT_VERSION, dialect, tables: [] }
 }
 
@@ -107,7 +107,7 @@ pub fn TableDef::index(self : TableDef, name : String) -> IndexDef? {
 
 ///|
 /// The name a dialect goes by in config files and snapshots.
-pub fn dialect_name(d : @sql.Dialect) -> String {
+pub fn dialect_name(d : @aya.Dialect) -> String {
   match d {
     Sqlite => "sqlite"
     Postgres => "postgres"
@@ -115,8 +115,8 @@ pub fn dialect_name(d : @sql.Dialect) -> String {
 }
 
 ///|
-/// Parse a dialect name, rejecting anything cairn does not model.
-pub fn dialect_of_name(name : String) -> @sql.Dialect raise DdlError {
+/// Parse a dialect name, rejecting anything aya does not model.
+pub fn dialect_of_name(name : String) -> @aya.Dialect raise DdlError {
   match name {
     "sqlite" => Sqlite
     "postgres" | "postgresql" | "pg" => Postgres
@@ -131,14 +131,14 @@ pub fn dialect_of_name(name : String) -> @sql.Dialect raise DdlError {
 ///|
 /// A sentence, not a constructor dump.
 ///
-/// These errors are read by whoever ran `cairn-kit`, usually right after they
+/// These errors are read by whoever ran `aya-kit`, usually right after they
 /// changed an entity, so the message says what to change back.
 pub impl Show for DdlError with fn output(self, logger) {
   logger.write_string(
     match self {
       DuplicateTable(table~) => "two entities both map to table `\{table}`"
       UnknownColumnType(table~, column~, ty~) =>
-        "\{table}.\{column}: no built-in SQL type for `\{ty}`; add `#cairn.column(type=\"...\")` to say what it stores"
+        "\{table}.\{column}: no built-in SQL type for `\{ty}`; add `#aya.column(type=\"...\")` to say what it stores"
       UnsupportedDialect(dialect~, reason~) => "dialect `\{dialect}`: \{reason}"
       UnsafeChange(table~, reason~) => "table `\{table}`: \{reason}"
       BadSnapshot(reason~) => "snapshot: \{reason}"

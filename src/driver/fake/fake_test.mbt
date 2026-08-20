@@ -2,9 +2,9 @@
 /// The execution layer's own test fixture: a table small enough to read, with
 /// one nullable column so `IS NULL` has something to bind against.
 struct UserCols {
-  id : @sql.Column[Int]
-  name : @sql.Column[String]
-  age : @sql.Column[Int]
+  id : @aya.Column[Int]
+  name : @aya.Column[String]
+  age : @aya.Column[Int]
 }
 
 ///|
@@ -14,19 +14,19 @@ struct User {
 } derive(Debug, Eq)
 
 ///|
-fn users() -> @sql.Table[UserCols, User] {
+fn users() -> @aya.Table[UserCols, User] {
   let cols : UserCols = {
-    id: @sql.Column::new(tbl="u", name="id"),
-    name: @sql.Column::new(tbl="u", name="name"),
-    age: @sql.Column::new(tbl="u", name="age"),
+    id: @aya.Column::new(tbl="u", name="id"),
+    name: @aya.Column::new(tbl="u", name="name"),
+    age: @aya.Column::new(tbl="u", name="age"),
   }
-  @sql.Table::new(
+  @aya.Table::new(
     table_name="users",
     tbl="u",
     cols~,
-    all=@sql.sel2(cols.id, cols.name).into2((id, name) => User::{ id, name }),
-    write=@sql.Binding::new(["id", "name"], u => {
-      [@sql.SqlEncode::to_sql_value(u.id), @sql.SqlEncode::to_sql_value(u.name)]
+    all=@aya.sel2(cols.id, cols.name).into2((id, name) => User::{ id, name }),
+    write=@aya.Binding::new(["id", "name"], u => {
+      [@aya.SqlEncode::to_sql_value(u.id), @aya.SqlEncode::to_sql_value(u.name)]
     }),
   )
 }
@@ -34,10 +34,10 @@ fn users() -> @sql.Table[UserCols, User] {
 ///|
 async test "a query runs, decodes and returns every row" {
   let db = FakeDb::new(results=[
-    [[@sql.VInt(1), @sql.VText("alice")], [@sql.VInt(2), @sql.VText("bob")]],
+    [[@aya.VInt(1), @aya.VText("alice")], [@aya.VInt(2), @aya.VText("bob")]],
   ])
-  let rows = (@sql.from(users())
-  |> @sql.Query::map(u => @sql.sel2(u.id, u.name))).run(db)
+  let rows = (@aya.from(users())
+  |> @aya.Query::map(u => @aya.sel2(u.id, u.name))).run(db)
   debug_inspect(
     rows,
     content=(
@@ -54,11 +54,11 @@ async test "a query runs, decodes and returns every row" {
 
 ///|
 async test "one requires exactly one row" {
-  let q = @sql.from(users())
-    |> @sql.Query::filter(u => u.id.eq(1))
-    |> @sql.Query::map(u => @sql.sel(u.name))
+  let q = @aya.from(users())
+    |> @aya.Query::filter(u => u.id.eq(1))
+    |> @aya.Query::map(u => @aya.sel(u.name))
   debug_inspect(
-    q.one(FakeDb::new(results=[[[@sql.VText("alice")]]])),
+    q.one(FakeDb::new(results=[[[@aya.VText("alice")]]])),
     content=(
       #|"alice"
     ),
@@ -76,7 +76,7 @@ async test "one requires exactly one row" {
       )
   }
   try {
-    let _ = q.one(FakeDb::new(results=[[[@sql.VText("a")], [@sql.VText("b")]]]))
+    let _ = q.one(FakeDb::new(results=[[[@aya.VText("a")], [@aya.VText("b")]]]))
     fail("expected TooManyRows")
   } catch {
     e =>
@@ -94,10 +94,10 @@ async test "one requires exactly one row" {
 
 ///|
 async test "first tolerates an empty result" {
-  let q = @sql.from(users()) |> @sql.Query::map(u => @sql.sel(u.name))
+  let q = @aya.from(users()) |> @aya.Query::map(u => @aya.sel(u.name))
   debug_inspect(q.first(FakeDb::new(results=[[]])), content="None")
   debug_inspect(
-    q.first(FakeDb::new(results=[[[@sql.VText("alice")]]])),
+    q.first(FakeDb::new(results=[[[@aya.VText("alice")]]])),
     content=(
       #|Some("alice")
     ),
@@ -108,10 +108,10 @@ async test "first tolerates an empty result" {
 async test "dml returns the affected row count" {
   let db = FakeDb::new(counts=[1, 3])
   inspect(
-    @sql.insert(users(), User::{ id: 1, name: "alice" }).run(db),
+    @aya.insert(users(), User::{ id: 1, name: "alice" }).run(db),
     content="1",
   )
-  inspect(@sql.delete(users(), u => u.age.lt(18)).run(db), content="3")
+  inspect(@aya.delete(users(), u => u.age.lt(18)).run(db), content="3")
   debug_inspect(
     db.stmts,
     content=(
@@ -133,7 +133,7 @@ async test "dml returns the affected row count" {
 async test "the driver's dialect picks the placeholder syntax" {
   let db = FakeDb::new(counts=[1], dialect=Postgres)
   inspect(
-    @sql.insert(users(), User::{ id: 1, name: "alice" }).run(db),
+    @aya.insert(users(), User::{ id: 1, name: "alice" }).run(db),
     content="1",
   )
   debug_inspect(
@@ -152,9 +152,9 @@ async test "the driver's dialect picks the placeholder syntax" {
 ///|
 async test "a transaction commits when the body returns" {
   let db = FakeDb::new(counts=[1, 1])
-  let moved = @sql.transaction(@sql.Tx::new(db), conn => {
-    let removed = @sql.delete(users(), u => u.id.eq(2)).run(conn)
-    let added = @sql.insert(users(), User::{ id: 2, name: "bob" }).run(conn)
+  let moved = @aya.transaction(@aya.Tx::new(db), conn => {
+    let removed = @aya.delete(users(), u => u.id.eq(2)).run(conn)
+    let added = @aya.insert(users(), User::{ id: 2, name: "bob" }).run(conn)
     removed + added
   })
   inspect(moved, content="2")
@@ -170,10 +170,10 @@ async test "a transaction commits when the body returns" {
 async test "a transaction rolls back and re-raises when the body fails" {
   let db = FakeDb::new(counts=[1])
   try {
-    let _ : Unit = @sql.transaction(@sql.Tx::new(db), conn => {
-      let _ = @sql.delete(users(), u => u.id.eq(2)).run(conn)
+    let _ : Unit = @aya.transaction(@aya.Tx::new(db), conn => {
+      let _ = @aya.delete(users(), u => u.id.eq(2)).run(conn)
       // Something the caller decides is fatal, half way through.
-      raise @sql.DecodeError::Malformed("business rule violated")
+      raise @aya.DecodeError::Malformed("business rule violated")
     })
     fail("expected the body's error to propagate")
   } catch {
@@ -198,8 +198,8 @@ async test "a driver failure inside a transaction also rolls back" {
   let db = FakeDb::new(counts=[1])
   db.fail("disk full")
   try {
-    let _ : Int = @sql.transaction(@sql.Tx::new(db), conn => {
-      @sql.insert(users(), User::{ id: 1, name: "alice" }).run(conn)
+    let _ : Int = @aya.transaction(@aya.Tx::new(db), conn => {
+      @aya.insert(users(), User::{ id: 1, name: "alice" }).run(conn)
     })
     fail("expected the driver error to propagate")
   } catch {
@@ -228,14 +228,14 @@ async test "a driver failure inside a transaction also rolls back" {
 /// insist on being atomic end up in one transaction when something wraps them.
 async test "a nested transaction joins the enclosing one" {
   let db = FakeDb::new(counts=[1, 1])
-  let tx = @sql.Tx::new(db)
-  @sql.transaction(tx, _ => {
+  let tx = @aya.Tx::new(db)
+  @aya.transaction(tx, _ => {
     // Each of these stands for a repository method that brackets its own work.
-    @sql.transaction(tx, conn => {
-      @sql.insert(users(), User::{ id: 1, name: "alice" }).run(conn) |> ignore
+    @aya.transaction(tx, conn => {
+      @aya.insert(users(), User::{ id: 1, name: "alice" }).run(conn) |> ignore
     })
-    @sql.transaction(tx, conn => {
-      @sql.insert(users(), User::{ id: 2, name: "bob" }).run(conn) |> ignore
+    @aya.transaction(tx, conn => {
+      @aya.insert(users(), User::{ id: 2, name: "bob" }).run(conn) |> ignore
     })
   })
   debug_inspect(
@@ -251,9 +251,9 @@ async test "a nested transaction joins the enclosing one" {
 /// itself. A repository does not have to know which case it is in.
 async test "an unnested transaction brackets itself" {
   let db = FakeDb::new(counts=[1])
-  let tx = @sql.Tx::new(db)
-  @sql.transaction(tx, conn => {
-    @sql.insert(users(), User::{ id: 1, name: "alice" }).run(conn) |> ignore
+  let tx = @aya.Tx::new(db)
+  @aya.transaction(tx, conn => {
+    @aya.insert(users(), User::{ id: 1, name: "alice" }).run(conn) |> ignore
   })
   debug_inspect(
     db.log,
@@ -270,13 +270,13 @@ async test "an unnested transaction brackets itself" {
 /// outermost scope is still the only one that rolls back.
 async test "a nested failure rolls the whole transaction back once" {
   let db = FakeDb::new(counts=[1])
-  let tx = @sql.Tx::new(db)
+  let tx = @aya.Tx::new(db)
   try {
-    let _ : Unit = @sql.transaction(tx, _ => {
-      @sql.transaction(tx, conn => {
-        @sql.insert(users(), User::{ id: 1, name: "alice" }).run(conn) |> ignore
+    let _ : Unit = @aya.transaction(tx, _ => {
+      @aya.transaction(tx, conn => {
+        @aya.insert(users(), User::{ id: 1, name: "alice" }).run(conn) |> ignore
       })
-      @sql.transaction(tx, _ => raise @sql.DecodeError::Malformed("bad row"))
+      @aya.transaction(tx, _ => raise @aya.DecodeError::Malformed("bad row"))
     })
     fail("expected the nested failure to propagate")
   } catch {
@@ -303,11 +303,11 @@ async test "a nested failure rolls the whole transaction back once" {
 /// reporting the failure that made it impossible rather than the swallowing.
 async test "swallowing a nested failure still forbids the commit" {
   let db = FakeDb::new(counts=[1])
-  let tx = @sql.Tx::new(db)
+  let tx = @aya.Tx::new(db)
   try {
-    let _ : Unit = @sql.transaction(tx, conn => {
-      @sql.insert(users(), User::{ id: 1, name: "alice" }).run(conn) |> ignore
-      @sql.transaction(tx, _ => raise @sql.DecodeError::Malformed("bad row")) catch {
+    let _ : Unit = @aya.transaction(tx, conn => {
+      @aya.insert(users(), User::{ id: 1, name: "alice" }).run(conn) |> ignore
+      @aya.transaction(tx, _ => raise @aya.DecodeError::Malformed("bad row")) catch {
         // "It is fine, carry on" — which it is not.
         _ => ()
       }
@@ -330,8 +330,8 @@ async test "swallowing a nested failure still forbids the commit" {
   )
   // The poison is scoped to the transaction that was poisoned, not to the
   // connection: the next transaction starts clean.
-  @sql.transaction(tx, conn => {
-    @sql.insert(users(), User::{ id: 2, name: "bob" }).run(conn) |> ignore
+  @aya.transaction(tx, conn => {
+    @aya.insert(users(), User::{ id: 2, name: "bob" }).run(conn) |> ignore
   })
   debug_inspect(
     db.log,
@@ -347,8 +347,8 @@ async test "swallowing a nested failure still forbids the commit" {
 async test "a failed begin does not roll back" {
   let db = FailingBegin::{ log: [] }
   try {
-    let _ : Int = @sql.transaction(@sql.Tx::new(db), conn => {
-      @sql.insert(users(), User::{ id: 1, name: "alice" }).run(conn)
+    let _ : Int = @aya.transaction(@aya.Tx::new(db), conn => {
+      @aya.insert(users(), User::{ id: 1, name: "alice" }).run(conn)
     })
     fail("expected the begin error to propagate")
   } catch {
@@ -374,7 +374,7 @@ struct FailingBegin {
 }
 
 ///|
-impl @sql.Executor for FailingBegin with fn query(
+impl @aya.Executor for FailingBegin with fn query(
   _self,
   _sql,
   _params,
@@ -385,28 +385,28 @@ impl @sql.Executor for FailingBegin with fn query(
 }
 
 ///|
-impl @sql.Executor for FailingBegin with fn execute(self, _sql, _params) {
+impl @aya.Executor for FailingBegin with fn execute(self, _sql, _params) {
   self.log.push("EXEC")
   0
 }
 
 ///|
-impl @sql.Executor for FailingBegin with fn dialect(_self) {
-  @sql.Dialect::Sqlite
+impl @aya.Executor for FailingBegin with fn dialect(_self) {
+  @aya.Dialect::Sqlite
 }
 
 ///|
-impl @sql.Driver for FailingBegin with fn begin(_self) {
-  raise @sql.ConnectionFailed("no connection")
+impl @aya.Driver for FailingBegin with fn begin(_self) {
+  raise @aya.ConnectionFailed("no connection")
 }
 
 ///|
-impl @sql.Driver for FailingBegin with fn commit(self) {
+impl @aya.Driver for FailingBegin with fn commit(self) {
   self.log.push("COMMIT")
 }
 
 ///|
-impl @sql.Driver for FailingBegin with fn rollback(self) {
+impl @aya.Driver for FailingBegin with fn rollback(self) {
   self.log.push("ROLLBACK")
 }
 
@@ -414,14 +414,14 @@ impl @sql.Driver for FailingBegin with fn rollback(self) {
 /// A whole-table summary is exactly one row, so `one` is the natural way to
 /// run it. A grouped query is many rows, so `run` is.
 async test "summaries run through the execution layer" {
-  let total = (@sql.from(users()) |> @sql.Query::reduce(_ => @sql.count())).one(
-    FakeDb::new(results=[[[@sql.VInt(7)]]]),
+  let total = (@aya.from(users()) |> @aya.Query::reduce(_ => @aya.count())).one(
+    FakeDb::new(results=[[[@aya.VInt(7)]]]),
   )
   inspect(total, content="7")
-  let per_name = (@sql.from(users())
-  |> @sql.Query::group_by(u => u.name, _ => @sql.count())).run(
+  let per_name = (@aya.from(users())
+  |> @aya.Query::group_by(u => u.name, _ => @aya.count())).run(
     FakeDb::new(results=[
-      [[@sql.VText("alice"), @sql.VInt(2)], [@sql.VText("bob"), @sql.VInt(1)]],
+      [[@aya.VText("alice"), @aya.VInt(2)], [@aya.VText("bob"), @aya.VInt(1)]],
     ]),
   )
   debug_inspect(

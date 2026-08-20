@@ -19,7 +19,7 @@ pub(all) struct JournalEntry {
 /// one is deleted by hand.
 pub(all) struct Journal {
   version : String
-  dialect : @sql.Dialect
+  dialect : @aya.Dialect
   entries : Array[JournalEntry]
 } derive(Debug, Eq)
 
@@ -27,7 +27,7 @@ pub(all) struct Journal {
 pub const JOURNAL_VERSION = "1"
 
 ///|
-pub fn Journal::new(dialect : @sql.Dialect) -> Journal {
+pub fn Journal::new(dialect : @aya.Dialect) -> Journal {
   { version: JOURNAL_VERSION, dialect, entries: [] }
 }
 
@@ -89,7 +89,7 @@ pub fn Journal::from_json_string(text : String) -> Journal raise KitError {
   }
   guard version == JOURNAL_VERSION else {
     raise BadJournal(
-      reason="journal format version \{version}, this cairn writes \{JOURNAL_VERSION}",
+      reason="journal format version \{version}, this aya writes \{JOURNAL_VERSION}",
     )
   }
   let dialect = match obj.get("dialect") {

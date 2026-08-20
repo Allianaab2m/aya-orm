@@ -1,6 +1,6 @@
 import {
   "moonbitlang/core/json",
-  "Allianaab2m/cairn/ddl",
-  "Allianaab2m/cairn/gen",
-  "Allianaab2m/cairn/sql",
+  "Allianaab2m/aya/ddl",
+  "Allianaab2m/aya/gen",
+  "Allianaab2m/aya",
 }

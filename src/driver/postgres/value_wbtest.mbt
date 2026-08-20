@@ -19,14 +19,14 @@ suberror Unexpected {
 ///|
 /// `DbError` is the whole vocabulary a driver may fail in, so the translation
 /// has to be total: an error from somewhere the client did not anticipate
-/// still has to come out as one of cairn's, not escape as itself.
+/// still has to come out as one of aya's, not escape as itself.
 test "an unrecognised failure still becomes a DbError" {
   debug_inspect(
     as_db_error("SELECT 1", Unexpected("socket vanished")),
     content=(
       #|QueryFailed(
       #|  sql="SELECT 1",
-      #|  message="unexpected client failure: Allianaab2m/cairn/driver/postgres.Unexpected.Unexpected",
+      #|  message="unexpected client failure: Allianaab2m/aya/driver/postgres.Unexpected.Unexpected",
       #|)
     ),
   )

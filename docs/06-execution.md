@@ -2,7 +2,7 @@
 
 [← Aggregation](05-aggregate.md) · [Repository →](07-repository.md)
 
-Everything above this chapter is dialect-agnostic: cairn builds SQL text plus
+Everything above this chapter is dialect-agnostic: aya builds SQL text plus
 an ordered parameter list. This chapter is about handing that pair to something
 that can run it.
 
@@ -28,7 +28,7 @@ were built for. Bracketing a transaction is a separate capability, and a
 `Driver` is an `Executor` that also has it.
 
 **The split is the point.** `run` / `one` / `first` are bounded by `Executor`,
-and everything cairn hands to the body of a transaction is an `Executor` and
+and everything aya hands to the body of a transaction is an `Executor` and
 nothing more — so code running inside a transaction cannot commit or roll back
 the transaction it is running inside. Only `Tx` sends those three statements.
 
@@ -76,7 +76,7 @@ pub async fn[E : Executor, C] Delete::run(Delete[C], E) -> Int
 Over a table typed by a domain entity, what comes back is domain values:
 
 ```moonbit
-@sql.from(orders()).run(db)
+@aya.from(orders()).run(db)
 // => [Shipped(id=1, items=3, submitted_at="2026-08-01", tracking="ZZ123"),
 //     Draft(id=2, items=1)]
 ```
@@ -101,11 +101,11 @@ pub async fn[D : Driver, A] transaction(Tx[D], async (Tx[D]) -> A) -> A
 body is an ordinary function that may `raise` part way through.
 
 ```moonbit
-let db = @sql.Tx::new(driver)
+let db = @aya.Tx::new(driver)
 
-@sql.transaction(db, conn => {
-  let removed = @sql.delete(orders(), o => o.id.eq(2)).run(conn)
-  let added = @sql.insert(orders(), Submitted(id=2, items=1, submitted_at=at)).run(conn)
+@aya.transaction(db, conn => {
+  let removed = @aya.delete(orders(), o => o.id.eq(2)).run(conn)
+  let added = @aya.insert(orders(), Submitted(id=2, items=1, submitted_at=at)).run(conn)
   (removed, added)
 })
 ```
@@ -141,7 +141,7 @@ and nothing else, so two operations that each insist on being atomic land in
 one transaction when something wraps them:
 
 ```moonbit
-@sql.transaction(db, _ => {
+@aya.transaction(db, _ => {
   tickets.save(a)   // save brackets its own work...
   users.save(b)     // ...but here both join the enclosing transaction
 })
@@ -204,14 +204,14 @@ not fitting the type the entity declared for it.
 
 ```moonbit
 @sqlite.with_connection(":memory:", db => {
-  let tickets = @sql.from(TicketRow::table()).run(db)
+  let tickets = @aya.from(TicketRow::table()).run(db)
   ...
 })
 
 @postgres.with_connection(
-  @postgres.config(host="localhost", user="alliana", database="cairn"),
+  @postgres.config(host="localhost", user="alliana", database="aya"),
   db => {
-    let tickets = @sql.from(TicketRow::table()).run(db)
+    let tickets = @aya.from(TicketRow::table()).run(db)
     ...
   },
 )
@@ -223,11 +223,11 @@ protocol underneath it. Nothing happens unless something drives that pump, so
 it is spawned for you and the connection is closed however the body ends.
 
 The two translations either side of the wire are the whole of a driver. Going
-out, the *server* decides what type each placeholder has, so cairn's
+out, the *server* decides what type each placeholder has, so aya's
 `VInt(Int64)` is encoded at whatever width the column turned out to be. Coming
 back, the row description names each column's type, so a `SqlValue` of the
-matching shape can be built — cairn's decoders match on the constructor, and a
-guess would be a silent wrong answer. PostgreSQL types cairn has no shape for
+matching shape can be built — aya's decoders match on the constructor, and a
+guess would be a silent wrong answer. PostgreSQL types aya has no shape for
 (dates, timestamps, uuid) are refused by name rather than guessed at; cast them
 in the query, as in `submitted_at::text`.
 
@@ -243,7 +243,7 @@ Ask it for a column as an `Int` and a NULL arrives as `0` — a real value, and
 the wrong one. That is a silent wrong answer in the middle of an otherwise
 type-safe path, so the type is asked of the database rather than guessed.
 
-A driver declares which shape of SELECT list it needs, and cairn writes it:
+A driver declares which shape of SELECT list it needs, and aya writes it:
 
 ```sql
 -- RowShape::Plain, what a driver that can describe a result row needs
@@ -286,7 +286,7 @@ pub fn FakeDb::fail(FakeDb, String, after? : Int) -> Unit
 
 ```moonbit
 let db = @fake.FakeDb::new(counts=[1, 1])
-let repo = SqlTickets::new(@sql.Tx::new(db))
+let repo = SqlTickets::new(@aya.Tx::new(db))
 repo.save(Open(id=1, subject="printer on fire"))
 db.log  // ["BEGIN", "QUERY", "EXEC", "COMMIT"]
 ```

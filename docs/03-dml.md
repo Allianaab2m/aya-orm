@@ -54,14 +54,14 @@ in a chain it could be forgotten, and forgetting it rewrites the whole table.
 To target every row you call `update_all` or `delete_all` and say so by name.
 
 ```moonbit
-@sql.insert(User::table(), user)
-@sql.insert_except(User::table(), user, omit=["id"])  // let the database assign the key
-@sql.insert_many(User::table(), [a, b, c])            // one statement, not three
+@aya.insert(User::table(), user)
+@aya.insert_except(User::table(), user, omit=["id"])  // let the database assign the key
+@aya.insert_many(User::table(), [a, b, c])            // one statement, not three
 
-@sql.update(User::table(), u => u.id.eq(7))
-|> @sql.Update::set(u => u.name, "bob")
+@aya.update(User::table(), u => u.id.eq(7))
+|> @aya.Update::set(u => u.name, "bob")
 
-@sql.delete(User::table(), u => u.age.lt(18))
+@aya.delete(User::table(), u => u.age.lt(18))
 ```
 
 ```sql
@@ -159,7 +159,7 @@ anything the database might say. Failures that come *from* the database are
 values directly and flattens them through `Binding::contramap` on the way out.
 
 ```moonbit
-@sql.insert(orders(), Submitted(id=2, items=1, submitted_at="2026-08-01"))
+@aya.insert(orders(), Submitted(id=2, items=1, submitted_at="2026-08-01"))
 ```
 
 ```sql

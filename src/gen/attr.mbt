@@ -1,9 +1,9 @@
 ///|
-/// A `#cairn.*` attribute recovered from source text.
+/// A `#aya.*` attribute recovered from source text.
 ///
 /// `moonbitlang/parser` hands us attributes with `raw` filled in but `parsed`
 /// left as `None` for user-defined namespaces, so we read `raw` ourselves.
-/// `Attribute::name()` drops the namespace (`#cairn.id` and `#morm.id` both
+/// `Attribute::name()` drops the namespace (`#aya.id` and `#morm.id` both
 /// report `"id"`), which is not good enough to tell our attributes apart.
 pub struct Attr {
   name : String
@@ -17,7 +17,7 @@ pub(all) suberror AttrError {
 } derive(Debug)
 
 ///|
-/// Parse one raw attribute such as `#cairn.entity(table="users", alias="u")`.
+/// Parse one raw attribute such as `#aya.entity(table="users", alias="u")`.
 ///
 /// Returns `None` when the attribute belongs to another namespace, so callers
 /// can ignore `#deprecated`, `#morm.entity`, and friends without special cases.
@@ -41,7 +41,7 @@ pub fn parse_attr(raw : String) -> Attr? raise AttrError {
 
 ///|
 /// The attribute namespace this generator claims.
-const NAMESPACE = "cairn"
+const NAMESPACE = "aya"
 
 ///|
 /// Parse `k="v", k2="v2"` into a map.

@@ -1,12 +1,12 @@
 ///|
-/// A cairn connection backed by `moonbit-community/sqlite3`.
+/// A aya connection backed by `moonbit-community/sqlite3`.
 ///
 /// That binding is deliberately thin: it hands back whatever you ask a column
 /// for and has no public way to report a column's type or to say `NULL`. Both
 /// gaps are closed here rather than worked around, because the alternative in
 /// each case is a wrong answer rather than an error.
 ///
-/// Reading, the driver declares `RowShape::Typed`, so cairn writes the SELECT
+/// Reading, the driver declares `RowShape::Typed`, so aya writes the SELECT
 /// list as `typeof(e), e` pairs and SQLite itself names the storage class of
 /// every value. Writing, a `VNull` parameter is simply not bound: SQLite reads
 /// an unbound parameter as NULL, which is the one way to send one through this
@@ -18,17 +18,17 @@ pub struct Sqlite {
 ///|
 /// Open a database file, or `":memory:"` for one that lives as long as the
 /// connection.
-pub fn Sqlite::open(path : String) -> Sqlite raise @sql.DbError {
+pub fn Sqlite::open(path : String) -> Sqlite raise @aya.DbError {
   { conn: @sqlite3.Connection::open(path) } catch {
-    e => raise @sql.ConnectionFailed("cannot open \{path}: \{describe_code(e)}")
+    e => raise @aya.ConnectionFailed("cannot open \{path}: \{describe_code(e)}")
   }
 }
 
 ///|
 /// Close the connection, releasing the database handle.
-pub fn Sqlite::close(self : Sqlite) -> Unit raise @sql.DbError {
+pub fn Sqlite::close(self : Sqlite) -> Unit raise @aya.DbError {
   self.conn.close() catch {
-    e => raise @sql.ConnectionFailed(self.describe(e))
+    e => raise @aya.ConnectionFailed(self.describe(e))
   }
 }
 
@@ -41,7 +41,7 @@ fn Sqlite::close_quietly(self : Sqlite) -> Unit {
 }
 
 ///|
-/// The underlying connection, for the things cairn does not model.
+/// The underlying connection, for the things aya does not model.
 pub fn Sqlite::connection(self : Sqlite) -> @sqlite3.Connection {
   self.conn
 }
@@ -61,19 +61,19 @@ pub async fn[A] with_connection(path : String, body : async (Sqlite) -> A) -> A 
 }
 
 ///|
-pub impl @sql.Executor for Sqlite with fn dialect(_self) {
-  @sql.Dialect::Sqlite
+pub impl @aya.Executor for Sqlite with fn dialect(_self) {
+  @aya.Dialect::Sqlite
 }
 
 ///|
-/// The binding reports neither a column's type nor its nullness, so cairn is
+/// The binding reports neither a column's type nor its nullness, so aya is
 /// asked to write the SELECT list with both alongside each value.
-pub impl @sql.Executor for Sqlite with fn row_shape(_self) {
-  @sql.RowShape::Typed
+pub impl @aya.Executor for Sqlite with fn row_shape(_self) {
+  @aya.RowShape::Typed
 }
 
 ///|
-pub impl @sql.Executor for Sqlite with fn query(self, sql, params, columns~) {
+pub impl @aya.Executor for Sqlite with fn query(self, sql, params, columns~) {
   let stmt = self.prepare(sql)
   // The statement holds native memory that dropping it will not release, and a
   // failure to release it must not displace the error that got us here.
@@ -81,7 +81,7 @@ pub impl @sql.Executor for Sqlite with fn query(self, sql, params, columns~) {
   self.bind_all(stmt, params, sql)
   let rows = []
   while (stmt.step() catch {
-          e => raise @sql.QueryFailed(sql~, message=self.describe(e))
+          e => raise @aya.QueryFailed(sql~, message=self.describe(e))
         }) {
     let row = []
     for i in 0..<columns {
@@ -93,28 +93,28 @@ pub impl @sql.Executor for Sqlite with fn query(self, sql, params, columns~) {
 }
 
 ///|
-pub impl @sql.Executor for Sqlite with fn execute(self, sql, params) {
+pub impl @aya.Executor for Sqlite with fn execute(self, sql, params) {
   let stmt = self.prepare(sql)
   defer self.discard(stmt)
   self.bind_all(stmt, params, sql)
   stmt.step_once() catch {
-    e => raise @sql.QueryFailed(sql~, message=self.describe(e))
+    e => raise @aya.QueryFailed(sql~, message=self.describe(e))
   }
   self.changes(sql)
 }
 
 ///|
-pub impl @sql.Driver for Sqlite with fn begin(self) {
+pub impl @aya.Driver for Sqlite with fn begin(self) {
   self.command("BEGIN")
 }
 
 ///|
-pub impl @sql.Driver for Sqlite with fn commit(self) {
+pub impl @aya.Driver for Sqlite with fn commit(self) {
   self.command("COMMIT")
 }
 
 ///|
-pub impl @sql.Driver for Sqlite with fn rollback(self) {
+pub impl @aya.Driver for Sqlite with fn rollback(self) {
   self.command("ROLLBACK")
 }
 
@@ -130,7 +130,7 @@ fn Sqlite::cell(
   stmt : @sqlite3.Statement,
   index : Int,
   sql : String,
-) -> @sql.SqlValue raise @sql.DbError {
+) -> @aya.SqlValue raise @aya.DbError {
   let tag : String = stmt.column(index=index * 2)
   let at = index * 2 + 1
   match tag {
@@ -152,7 +152,7 @@ fn Sqlite::cell(
       VBytes(b)
     }
     other =>
-      raise @sql.QueryFailed(
+      raise @aya.QueryFailed(
         sql~,
         message="column \{index} reported the unknown SQLite storage class \"\{other}\"",
       )
@@ -164,12 +164,12 @@ fn Sqlite::cell(
 fn Sqlite::bind_all(
   self : Sqlite,
   stmt : @sqlite3.Statement,
-  params : Array[@sql.SqlValue],
+  params : Array[@aya.SqlValue],
   sql : String,
-) -> Unit raise @sql.DbError {
+) -> Unit raise @aya.DbError {
   for i, v in params {
     bind_one(stmt, i + 1, v) catch {
-      e => raise @sql.QueryFailed(sql~, message=self.describe(e))
+      e => raise @aya.QueryFailed(sql~, message=self.describe(e))
     }
   }
 }
@@ -178,7 +178,7 @@ fn Sqlite::bind_all(
 fn bind_one(
   stmt : @sqlite3.Statement,
   index : Int,
-  v : @sql.SqlValue,
+  v : @aya.SqlValue,
 ) -> Unit raise @sqlite3.SqliteError {
   match v {
     // Left unbound on purpose: SQLite reads an unbound parameter as NULL, and
@@ -200,25 +200,25 @@ fn bind_one(
 /// The binding does not expose `sqlite3_changes`, but SQLite answers the same
 /// question in SQL, and asking it on the same connection is what makes the
 /// answer the right one.
-fn Sqlite::changes(self : Sqlite, sql : String) -> Int raise @sql.DbError {
+fn Sqlite::changes(self : Sqlite, sql : String) -> Int raise @aya.DbError {
   let stmt = self.prepare("SELECT changes()")
   defer self.discard(stmt)
   let has_row = stmt.step() catch {
-    e => raise @sql.QueryFailed(sql~, message=self.describe(e))
+    e => raise @aya.QueryFailed(sql~, message=self.describe(e))
   }
   if !has_row {
-    raise @sql.QueryFailed(sql~, message="SELECT changes() returned no row")
+    raise @aya.QueryFailed(sql~, message="SELECT changes() returned no row")
   }
   stmt.column(index=0)
 }
 
 ///|
 /// Run a statement that takes no parameters and returns no rows.
-fn Sqlite::command(self : Sqlite, sql : String) -> Unit raise @sql.DbError {
+fn Sqlite::command(self : Sqlite, sql : String) -> Unit raise @aya.DbError {
   let stmt = self.prepare(sql)
   defer self.discard(stmt)
   stmt.step_once() catch {
-    e => raise @sql.QueryFailed(sql~, message=self.describe(e))
+    e => raise @aya.QueryFailed(sql~, message=self.describe(e))
   }
 }
 
@@ -226,9 +226,9 @@ fn Sqlite::command(self : Sqlite, sql : String) -> Unit raise @sql.DbError {
 fn Sqlite::prepare(
   self : Sqlite,
   sql : String,
-) -> @sqlite3.Statement raise @sql.DbError {
+) -> @sqlite3.Statement raise @aya.DbError {
   self.conn.prepare(sql) catch {
-    e => raise @sql.QueryFailed(sql~, message=self.describe(e))
+    e => raise @aya.QueryFailed(sql~, message=self.describe(e))
   }
 }
 

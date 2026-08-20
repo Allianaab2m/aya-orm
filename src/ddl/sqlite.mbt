@@ -130,7 +130,7 @@ fn check_column_changes(
     if col.not_null && col.default_sql is None {
       raise UnsafeChange(
         table~,
-        reason="column `\{col.name}` is NOT NULL with no default, so existing rows have no value to take; add `#cairn.column(default=\"...\")` or make the field optional",
+        reason="column `\{col.name}` is NOT NULL with no default, so existing rows have no value to take; add `#aya.column(default=\"...\")` or make the field optional",
       )
     }
   }

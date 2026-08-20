@@ -76,11 +76,11 @@ pub fn[C, D, A]    Query::map_cols(Query[C, A], (C) -> D)               -> Query
 | 4 | dave | 25 | 2026-01-09 |
 
 ```moonbit
-@sql.from(User::table())
-|> @sql.Query::filter(u => u.age.gte(18) & u.deleted_at.is_none())
-|> @sql.Query::map(u => @sql.sel(u.name))
-|> @sql.Query::order_by(u => [u.name.asc()])
-|> @sql.Query::limit(20)
+@aya.from(User::table())
+|> @aya.Query::filter(u => u.age.gte(18) & u.deleted_at.is_none())
+|> @aya.Query::map(u => @aya.sel(u.name))
+|> @aya.Query::order_by(u => [u.name.asc()])
+|> @aya.Query::limit(20)
 ```
 
 ```sql
@@ -132,7 +132,7 @@ pub struct Expr[T](RawExpr)
 ものになり、SQL 側で必要な括弧はエミッタが補います。
 
 ```moonbit
-|> @sql.Query::filter(u => (u.age.gte(18) | u.name.eq("root")) & u.deleted_at.is_none())
+|> @aya.Query::filter(u => (u.age.gte(18) | u.name.eq("root")) & u.deleted_at.is_none())
 ```
 
 ```sql
@@ -158,7 +158,7 @@ pub fn[A : SqlDecode, B : SqlDecode, C : SqlDecode] sel3(Column[A], Column[B], C
 合成できます。
 
 ```moonbit
-|> @sql.Query::map(u => @sql.sel2(u.id, u.name).into2((id, name) => Summary::{ id, name }))
+|> @aya.Query::map(u => @aya.sel2(u.id, u.name).into2((id, name) => Summary::{ id, name }))
 ```
 
 `map` を挟まなければ、クエリはテーブルの `all` を射影し、テーブルのエンティティに

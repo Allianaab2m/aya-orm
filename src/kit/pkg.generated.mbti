@@ -1,14 +1,14 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "Allianaab2m/cairn/kit"
+package "Allianaab2m/aya/kit"
 
 import {
-  "Allianaab2m/cairn/ddl",
-  "Allianaab2m/cairn/sql",
+  "Allianaab2m/aya",
+  "Allianaab2m/aya/ddl",
   "moonbitlang/core/debug",
 }
 
 // Values
-pub const CONFIG_FILE : String = "cairn.json"
+pub const CONFIG_FILE : String = "aya.json"
 
 pub const JOURNAL_VERSION : String = "1"
 
@@ -18,7 +18,7 @@ pub fn pad_index(Int) -> String
 
 pub fn plan(journal~ : Journal, previous~ : @ddl.Snapshot, next~ : @ddl.Snapshot, now~ : Int64, name? : String) -> Plan raise
 
-pub fn snapshot_of_sources(Array[(String, String)], dialect~ : @sql.Dialect) -> @ddl.Snapshot raise
+pub fn snapshot_of_sources(Array[(String, String)], dialect~ : @aya.Dialect) -> @ddl.Snapshot raise
 
 // Errors
 pub(all) suberror KitError {
@@ -30,7 +30,7 @@ pub impl Show for KitError
 
 // Types and methods
 pub(all) struct Config {
-  dialect : @sql.Dialect
+  dialect : @aya.Dialect
   schema : Array[String]
   out : String
 } derive(Eq, @debug.Debug)
@@ -44,12 +44,12 @@ pub fn Config::to_json_string(Self) -> String
 
 pub(all) struct Journal {
   version : String
-  dialect : @sql.Dialect
+  dialect : @aya.Dialect
   entries : Array[JournalEntry]
 } derive(Eq, @debug.Debug)
 pub fn Journal::from_json_string(String) -> Self raise KitError
 pub fn Journal::last(Self) -> JournalEntry?
-pub fn Journal::new(@sql.Dialect) -> Self
+pub fn Journal::new(@aya.Dialect) -> Self
 pub fn Journal::next_index(Self) -> Int
 pub fn Journal::to_json_string(Self) -> String
 

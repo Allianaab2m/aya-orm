@@ -1,27 +1,27 @@
 ///|
 /// A driver that records what it was asked to run and replays canned results.
 ///
-/// It exercises cairn's own layer — SQL text, parameter order, decoding,
+/// It exercises aya's own layer — SQL text, parameter order, decoding,
 /// transaction bracketing — without pulling in a real database. It is not a
 /// SQL engine and does not pretend to be one, so the results it hands back are
 /// whatever the test supplied, in the order the test supplied them.
 ///
-/// The same reasoning applies outside cairn: a repository written against
-/// `@sql.Driver` can be tested against this rather than against a database.
+/// The same reasoning applies outside aya: a repository written against
+/// `@aya.Driver` can be tested against this rather than against a database.
 pub struct FakeDb {
   /// What the driver was asked to do, in order.
   log : Array[String]
   /// The statements themselves, with their bound parameters.
-  stmts : Array[(String, Array[@sql.SqlValue])]
+  stmts : Array[(String, Array[@aya.SqlValue])]
   /// Result sets returned by successive `query` calls.
-  mut results : Array[Array[Array[@sql.SqlValue]]]
+  mut results : Array[Array[Array[@aya.SqlValue]]]
   /// Row counts returned by successive `execute` calls.
   mut counts : Array[Int]
   /// How many statements to let through before failing, and with what.
   mut fail_in : Int?
   mut fail_message : String
   /// Which placeholder syntax the recorded SQL is built with.
-  dialect : @sql.Dialect
+  dialect : @aya.Dialect
 }
 
 ///|
@@ -32,9 +32,9 @@ pub struct FakeDb {
 /// count of zero rather than failing, so a test only has to spell out the
 /// statements it cares about.
 pub fn FakeDb::new(
-  results? : Array[Array[Array[@sql.SqlValue]]] = [],
+  results? : Array[Array[Array[@aya.SqlValue]]] = [],
   counts? : Array[Int] = [],
-  dialect? : @sql.Dialect = Sqlite,
+  dialect? : @aya.Dialect = Sqlite,
 ) -> FakeDb {
   {
     log: [],
@@ -63,12 +63,12 @@ pub fn FakeDb::fail(self : FakeDb, message : String, after? : Int = 0) -> Unit {
 
 ///|
 /// Consume a pending failure, if one was armed.
-fn FakeDb::check(self : FakeDb, sql : String) -> Unit raise @sql.DbError {
+fn FakeDb::check(self : FakeDb, sql : String) -> Unit raise @aya.DbError {
   match self.fail_in {
     None => ()
     Some(0) => {
       self.fail_in = None
-      raise @sql.QueryFailed(sql~, message=self.fail_message)
+      raise @aya.QueryFailed(sql~, message=self.fail_message)
     }
     Some(n) => self.fail_in = Some(n - 1)
   }
@@ -89,7 +89,7 @@ fn one_line(sql : String) -> String {
 }
 
 ///|
-pub impl @sql.Executor for FakeDb with fn query(self, sql, params, columns~) {
+pub impl @aya.Executor for FakeDb with fn query(self, sql, params, columns~) {
   ignore(columns)
   self.check(sql)
   self.log.push("QUERY")
@@ -104,7 +104,7 @@ pub impl @sql.Executor for FakeDb with fn query(self, sql, params, columns~) {
 }
 
 ///|
-pub impl @sql.Executor for FakeDb with fn execute(self, sql, params) {
+pub impl @aya.Executor for FakeDb with fn execute(self, sql, params) {
   self.check(sql)
   self.log.push("EXEC")
   self.stmts.push((one_line(sql), params))
@@ -118,21 +118,21 @@ pub impl @sql.Executor for FakeDb with fn execute(self, sql, params) {
 }
 
 ///|
-pub impl @sql.Executor for FakeDb with fn dialect(self) {
+pub impl @aya.Executor for FakeDb with fn dialect(self) {
   self.dialect
 }
 
 ///|
-pub impl @sql.Driver for FakeDb with fn begin(self) {
+pub impl @aya.Driver for FakeDb with fn begin(self) {
   self.log.push("BEGIN")
 }
 
 ///|
-pub impl @sql.Driver for FakeDb with fn commit(self) {
+pub impl @aya.Driver for FakeDb with fn commit(self) {
   self.log.push("COMMIT")
 }
 
 ///|
-pub impl @sql.Driver for FakeDb with fn rollback(self) {
+pub impl @aya.Driver for FakeDb with fn rollback(self) {
   self.log.push("ROLLBACK")
 }

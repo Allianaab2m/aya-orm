@@ -3,10 +3,10 @@
 
 ///|
 struct ItemCols {
-  id : @sql.Column[Int]
-  name : @sql.Column[String]
-  price : @sql.Column[Double]
-  note : @sql.Column[String?]
+  id : @aya.Column[Int]
+  name : @aya.Column[String]
+  price : @aya.Column[Double]
+  note : @aya.Column[String?]
 }
 
 ///|
@@ -18,32 +18,32 @@ struct Item {
 } derive(Debug, Eq)
 
 ///|
-fn items() -> @sql.Table[ItemCols, Item] {
+fn items() -> @aya.Table[ItemCols, Item] {
   let cols : ItemCols = {
-    id: @sql.Column::new(tbl="i", name="id"),
-    name: @sql.Column::new(tbl="i", name="name"),
-    price: @sql.Column::new(tbl="i", name="price"),
-    note: @sql.Column::new(tbl="i", name="note"),
+    id: @aya.Column::new(tbl="i", name="id"),
+    name: @aya.Column::new(tbl="i", name="name"),
+    price: @aya.Column::new(tbl="i", name="price"),
+    note: @aya.Column::new(tbl="i", name="note"),
   }
-  @sql.Table::new(
+  @aya.Table::new(
     table_name="items",
     tbl="i",
     cols~,
-    all=@sql.Selection::new(
+    all=@aya.Selection::new(
       [cols.id.raw(), cols.name.raw(), cols.price.raw(), cols.note.raw()],
       row => Item::{
-        id: @sql.SqlDecode::decode(row[0], "id"),
-        name: @sql.SqlDecode::decode(row[1], "name"),
-        price: @sql.SqlDecode::decode(row[2], "price"),
-        note: @sql.SqlDecode::decode(row[3], "note"),
+        id: @aya.SqlDecode::decode(row[0], "id"),
+        name: @aya.SqlDecode::decode(row[1], "name"),
+        price: @aya.SqlDecode::decode(row[2], "price"),
+        note: @aya.SqlDecode::decode(row[3], "note"),
       },
     ),
-    write=@sql.Binding::new(["id", "name", "price", "note"], v => {
+    write=@aya.Binding::new(["id", "name", "price", "note"], v => {
       [
-        @sql.SqlEncode::to_sql_value(v.id),
-        @sql.SqlEncode::to_sql_value(v.name),
-        @sql.SqlEncode::to_sql_value(v.price),
-        @sql.SqlEncode::to_sql_value(v.note),
+        @aya.SqlEncode::to_sql_value(v.id),
+        @aya.SqlEncode::to_sql_value(v.name),
+        @aya.SqlEncode::to_sql_value(v.price),
+        @aya.SqlEncode::to_sql_value(v.note),
       ]
     }),
   )
@@ -86,14 +86,14 @@ fn schema(db : Sqlite) -> Unit raise {
 async test "each storage class survives a round trip" {
   with_connection(":memory:", db => {
     schema(db)
-    @sql.insert(items(), Item::{
+    @aya.insert(items(), Item::{
       id: 1,
       name: "widget",
       price: 9.5,
       note: Some("fragile"),
     }).run(db)
     |> ignore
-    @sql.insert(items(), Item::{
+    @aya.insert(items(), Item::{
       id: 2,
       name: "sprocket",
       price: 3.0,
@@ -101,7 +101,7 @@ async test "each storage class survives a round trip" {
     }).run(db)
     |> ignore
     debug_inspect(
-      @sql.from(items()).run(db),
+      @aya.from(items()).run(db),
       content=(
         #|[
         #|  { id: 1, name: "widget", price: 9.5, note: Some("fragile") },
@@ -127,13 +127,13 @@ async test "a missing outer-joined row decodes as None, not as zero" {
         Item::{ id: 1, name: "widget", price: 9.5, note: None },
         Item::{ id: 2, name: "sprocket", price: 3.0, note: None },
       ] {
-      @sql.insert(items(), item).run(db) |> ignore
+      @aya.insert(items(), item).run(db) |> ignore
     }
     ddl(db, "INSERT INTO tags (item_id, tag) VALUES (1, 'boxed')")
-    let tagged = @sql.from(items())
-      |> @sql.Query::left_join(tags(), (i, t) => i.id.eq_col(t.item_id))
-      |> @sql.Query::map(
-        @sql.split2((i, t) => @sql.sel2(i.id, t.col(c => c.tag))),
+    let tagged = @aya.from(items())
+      |> @aya.Query::left_join(tags(), (i, t) => i.id.eq_col(t.item_id))
+      |> @aya.Query::map(
+        @aya.split2((i, t) => @aya.sel2(i.id, t.col(c => c.tag))),
       )
     debug_inspect(
       tagged.run(db),
@@ -146,8 +146,8 @@ async test "a missing outer-joined row decodes as None, not as zero" {
 
 ///|
 struct TagCols {
-  item_id : @sql.Column[Int]
-  tag : @sql.Column[String]
+  item_id : @aya.Column[Int]
+  tag : @aya.Column[String]
 }
 
 ///|
@@ -157,23 +157,23 @@ struct Tag {
 } derive(Debug, Eq)
 
 ///|
-fn tags() -> @sql.Table[TagCols, Tag] {
+fn tags() -> @aya.Table[TagCols, Tag] {
   let cols : TagCols = {
-    item_id: @sql.Column::new(tbl="t", name="item_id"),
-    tag: @sql.Column::new(tbl="t", name="tag"),
+    item_id: @aya.Column::new(tbl="t", name="item_id"),
+    tag: @aya.Column::new(tbl="t", name="tag"),
   }
-  @sql.Table::new(
+  @aya.Table::new(
     table_name="tags",
     tbl="t",
     cols~,
-    all=@sql.Selection::new([cols.item_id.raw(), cols.tag.raw()], row => Tag::{
-      item_id: @sql.SqlDecode::decode(row[0], "item_id"),
-      tag: @sql.SqlDecode::decode(row[1], "tag"),
+    all=@aya.Selection::new([cols.item_id.raw(), cols.tag.raw()], row => Tag::{
+      item_id: @aya.SqlDecode::decode(row[0], "item_id"),
+      tag: @aya.SqlDecode::decode(row[1], "tag"),
     }),
-    write=@sql.Binding::new(["item_id", "tag"], v => {
+    write=@aya.Binding::new(["item_id", "tag"], v => {
       [
-        @sql.SqlEncode::to_sql_value(v.item_id),
-        @sql.SqlEncode::to_sql_value(v.tag),
+        @aya.SqlEncode::to_sql_value(v.item_id),
+        @aya.SqlEncode::to_sql_value(v.tag),
       ]
     }),
   )
@@ -188,7 +188,7 @@ async test "a filtered and limited query binds each parameter once" {
   with_connection(":memory:", db => {
     schema(db)
     for id in [1, 2, 3] {
-      @sql.insert(items(), Item::{
+      @aya.insert(items(), Item::{
         id,
         name: "item-\{id}",
         price: id.to_double(),
@@ -196,10 +196,10 @@ async test "a filtered and limited query binds each parameter once" {
       }).run(db)
       |> ignore
     }
-    let q = @sql.from(items())
-      |> @sql.Query::filter(i => i.id.gte(2))
-      |> @sql.Query::map(i => @sql.sel2(i.id, i.name))
-      |> @sql.Query::limit(1)
+    let q = @aya.from(items())
+      |> @aya.Query::filter(i => i.id.gte(2))
+      |> @aya.Query::map(i => @aya.sel2(i.id, i.name))
+      |> @aya.Query::limit(1)
     debug_inspect(
       q.run(db),
       content=(
@@ -216,7 +216,7 @@ async test "writes report how many rows they touched" {
   with_connection(":memory:", db => {
     schema(db)
     for id in [1, 2, 3] {
-      @sql.insert(items(), Item::{
+      @aya.insert(items(), Item::{
         id,
         name: "item-\{id}",
         price: 1.0,
@@ -225,12 +225,12 @@ async test "writes report how many rows they touched" {
       |> ignore
     }
     inspect(
-      (@sql.update(items(), i => i.id.gte(2))
-      |> @sql.Update::set(i => i.name, "renamed")).run(db),
+      (@aya.update(items(), i => i.id.gte(2))
+      |> @aya.Update::set(i => i.name, "renamed")).run(db),
       content="2",
     )
-    inspect(@sql.delete(items(), i => i.id.eq(1)).run(db), content="1")
-    inspect(@sql.delete(items(), i => i.id.eq(99)).run(db), content="0")
+    inspect(@aya.delete(items(), i => i.id.eq(1)).run(db), content="1")
+    inspect(@aya.delete(items(), i => i.id.eq(99)).run(db), content="0")
   })
 }
 
@@ -241,24 +241,24 @@ async test "a rolled back transaction leaves nothing behind" {
   with_connection(":memory:", db => {
     schema(db)
     try {
-      let _ : Unit = @sql.transaction(@sql.Tx::new(db), conn => {
-        @sql.insert(items(), Item::{
+      let _ : Unit = @aya.transaction(@aya.Tx::new(db), conn => {
+        @aya.insert(items(), Item::{
           id: 1,
           name: "widget",
           price: 1.0,
           note: None,
         }).run(conn)
         |> ignore
-        raise @sql.DecodeError::Malformed("changed my mind")
+        raise @aya.DecodeError::Malformed("changed my mind")
       })
       fail("expected the body's error to propagate")
     } catch {
-      @sql.Malformed(_) => ()
+      @aya.Malformed(_) => ()
       e => raise e
     }
-    inspect(@sql.from(items()).run(db).length(), content="0")
-    let kept = @sql.transaction(@sql.Tx::new(db), conn => {
-      @sql.insert(items(), Item::{
+    inspect(@aya.from(items()).run(db).length(), content="0")
+    let kept = @aya.transaction(@aya.Tx::new(db), conn => {
+      @aya.insert(items(), Item::{
         id: 2,
         name: "sprocket",
         price: 2.0,
@@ -266,7 +266,7 @@ async test "a rolled back transaction leaves nothing behind" {
       }).run(conn)
     })
     inspect(kept, content="1")
-    inspect(@sql.from(items()).run(db).length(), content="1")
+    inspect(@aya.from(items()).run(db).length(), content="1")
   })
 }
 
@@ -279,10 +279,10 @@ async test "a rolled back transaction leaves nothing behind" {
 async test "nested transactions commit once, against SQLite" {
   with_connection(":memory:", db => {
     schema(db)
-    let tx = @sql.Tx::new(db)
-    @sql.transaction(tx, _ => {
-      @sql.transaction(tx, conn => {
-        @sql.insert(items(), Item::{
+    let tx = @aya.Tx::new(db)
+    @aya.transaction(tx, _ => {
+      @aya.transaction(tx, conn => {
+        @aya.insert(items(), Item::{
           id: 1,
           name: "widget",
           price: 1.0,
@@ -290,8 +290,8 @@ async test "nested transactions commit once, against SQLite" {
         }).run(conn)
         |> ignore
       })
-      @sql.transaction(tx, conn => {
-        @sql.insert(items(), Item::{
+      @aya.transaction(tx, conn => {
+        @aya.insert(items(), Item::{
           id: 2,
           name: "sprocket",
           price: 2.0,
@@ -300,7 +300,7 @@ async test "nested transactions commit once, against SQLite" {
         |> ignore
       })
     })
-    inspect(@sql.from(items()).run(db).length(), content="2")
+    inspect(@aya.from(items()).run(db).length(), content="2")
   })
 }
 
@@ -310,11 +310,11 @@ async test "nested transactions commit once, against SQLite" {
 async test "a nested failure undoes the enclosing transaction, against SQLite" {
   with_connection(":memory:", db => {
     schema(db)
-    let tx = @sql.Tx::new(db)
+    let tx = @aya.Tx::new(db)
     try {
-      let _ : Unit = @sql.transaction(tx, _ => {
-        @sql.transaction(tx, conn => {
-          @sql.insert(items(), Item::{
+      let _ : Unit = @aya.transaction(tx, _ => {
+        @aya.transaction(tx, conn => {
+          @aya.insert(items(), Item::{
             id: 1,
             name: "widget",
             price: 1.0,
@@ -322,24 +322,24 @@ async test "a nested failure undoes the enclosing transaction, against SQLite" {
           }).run(conn)
           |> ignore
         })
-        @sql.transaction(tx, _ => raise @sql.DecodeError::Malformed("no"))
+        @aya.transaction(tx, _ => raise @aya.DecodeError::Malformed("no"))
       })
       fail("expected the nested failure to propagate")
     } catch {
-      @sql.Malformed(_) => ()
+      @aya.Malformed(_) => ()
       e => raise e
     }
-    inspect(@sql.from(items()).run(db).length(), content="0")
+    inspect(@aya.from(items()).run(db).length(), content="0")
   })
 }
 
 ///|
-/// A statement the database rejects comes back as cairn's own failure, with
+/// A statement the database rejects comes back as aya's own failure, with
 /// SQLite's message rather than only a result code.
 async test "a broken statement fails as a DbError" {
   with_connection(":memory:", db => {
     try {
-      let _ = @sql.from(items()).run(db)
+      let _ = @aya.from(items()).run(db)
       fail("expected the missing table to be reported")
     } catch {
       e =>

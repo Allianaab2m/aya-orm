@@ -1,11 +1,11 @@
 ///|
-/// A cairn connection backed by `moonbit-community/postgres`.
+/// A aya connection backed by `moonbit-community/postgres`.
 ///
-/// Everything cairn asks of a driver — run this text with these parameters,
+/// Everything aya asks of a driver — run this text with these parameters,
 /// tell me your placeholder syntax, bracket a transaction — the client already
-/// does. What this adds is the two translations either side of it: cairn's
+/// does. What this adds is the two translations either side of it: aya's
 /// `SqlValue` to and from PostgreSQL's typed wire, and the client's error
-/// vocabulary into cairn's.
+/// vocabulary into aya's.
 pub struct Postgres {
   client : @client.Client
 }
@@ -15,19 +15,19 @@ pub struct Postgres {
 ///
 /// Useful when the client comes from somewhere else — a pool, or a connection
 /// the caller is also using directly. `with_connection` is the shorter path
-/// when cairn is the only user.
+/// when aya is the only user.
 pub fn Postgres::new(client : @client.Client) -> Postgres {
   { client, }
 }
 
 ///|
-/// The underlying client, for the things cairn does not model.
+/// The underlying client, for the things aya does not model.
 pub fn Postgres::client(self : Postgres) -> @client.Client {
   self.client
 }
 
 ///|
-/// A connection configuration with cairn's defaults filled in.
+/// A connection configuration with aya's defaults filled in.
 ///
 /// The client's own `Config::new` asks for an application name and a database
 /// up front; both have obvious defaults here, and spelling them out at every
@@ -39,7 +39,7 @@ pub fn config(
   password? : String,
   port? : Int = 5432,
   ssl_mode? : @client.SslMode,
-  application_name? : String = "cairn",
+  application_name? : String = "aya",
 ) -> @client.Config {
   @client.Config::new(
     host,
@@ -78,13 +78,13 @@ pub async fn[A] with_connection(
 }
 
 ///|
-pub impl @sql.Executor for Postgres with fn query(
+pub impl @aya.Executor for Postgres with fn query(
   self,
   sql,
   parameters,
   columns~,
 ) {
-  // The row description already says how wide a row is, so the hint cairn
+  // The row description already says how wide a row is, so the hint aya
   // passes for bindings that cannot say is not needed here.
   ignore(columns)
   let rows = self.client.query(sql, params=params(parameters)).collect() catch {
@@ -100,15 +100,15 @@ pub impl @sql.Executor for Postgres with fn query(
 }
 
 ///|
-pub impl @sql.Executor for Postgres with fn execute(self, sql, parameters) {
+pub impl @aya.Executor for Postgres with fn execute(self, sql, parameters) {
   self.client.execute(sql, params=params(parameters)) catch {
     e => raise as_db_error(sql, e)
   }
 }
 
 ///|
-pub impl @sql.Executor for Postgres with fn dialect(_self) {
-  @sql.Dialect::Postgres
+pub impl @aya.Executor for Postgres with fn dialect(_self) {
+  @aya.Dialect::Postgres
 }
 
 ///|
@@ -116,21 +116,21 @@ pub impl @sql.Executor for Postgres with fn dialect(_self) {
 /// own `Transaction` handle.
 ///
 /// The handle is the better API in general — it is a value you cannot forget to
-/// finish — but cairn's `transaction` combinator already provides that
+/// finish — but aya's `transaction` combinator already provides that
 /// guarantee one level up, and its `Driver` contract is three independent
 /// calls. Sending the statements keeps the driver a translation layer instead
 /// of making it hold transaction state of its own.
-pub impl @sql.Driver for Postgres with fn begin(self) {
+pub impl @aya.Driver for Postgres with fn begin(self) {
   self.command("BEGIN")
 }
 
 ///|
-pub impl @sql.Driver for Postgres with fn commit(self) {
+pub impl @aya.Driver for Postgres with fn commit(self) {
   self.command("COMMIT")
 }
 
 ///|
-pub impl @sql.Driver for Postgres with fn rollback(self) {
+pub impl @aya.Driver for Postgres with fn rollback(self) {
   self.command("ROLLBACK")
 }
 
@@ -138,7 +138,7 @@ pub impl @sql.Driver for Postgres with fn rollback(self) {
 async fn Postgres::command(
   self : Postgres,
   sql : String,
-) -> Unit raise @sql.DbError {
+) -> Unit raise @aya.DbError {
   self.client.batch_execute(sql) catch {
     e => raise as_db_error(sql, e)
   }

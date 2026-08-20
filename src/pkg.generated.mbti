@@ -1,12 +1,330 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "Allianaab2m/cairn"
+package "Allianaab2m/aya"
+
+import {
+  "moonbitlang/core/debug",
+}
 
 // Values
+pub fn[T : SqlNum] avg(Column[T]) -> Reducer[Double?]
+
+pub fn count() -> Reducer[Int]
+
+pub fn[T] count_of(Column[T]) -> Reducer[Int]
+
+pub fn[C, R] delete(Table[C, R], (C) -> Expr[Bool]) -> Delete[C]
+
+pub fn[C, R] delete_all(Table[C, R]) -> Delete[C]
+
+pub fn[C, R] from(Table[C, R]) -> Query[C, R]
+
+pub fn[C, R] insert(Table[C, R], R) -> Insert
+
+pub fn[C, R] insert_except(Table[C, R], R, omit~ : Array[String]) -> Insert
+
+pub fn[C, R] insert_many(Table[C, R], Array[R]) -> Insert
+
+pub fn[T : SqlDecode + SqlOrd] max(Column[T]) -> Reducer[T?]
+
+pub fn[T : SqlDecode + SqlOrd] min(Column[T]) -> Reducer[T?]
+
+pub fn[T : SqlDecode] sel(Column[T]) -> Selection[T]
+
+pub fn[A : SqlDecode, B : SqlDecode] sel2(Column[A], Column[B]) -> Selection[(A, B)]
+
+pub fn[A : SqlDecode, B : SqlDecode, C : SqlDecode] sel3(Column[A], Column[B], Column[C]) -> Selection[(A, B, C)]
+
+pub fn[A, B, R] split2((A, B) -> R) -> ((A, B)) -> R
+
+pub fn[T : SqlDecode + SqlNum] sum(Column[T]) -> Reducer[T?]
+
+pub async fn[D : Driver, A] transaction(Tx[D], async (Tx[D]) -> A) -> A
+
+pub fn[C, R] update(Table[C, R], (C) -> Expr[Bool]) -> Update[C]
+
+pub fn[C, R] update_all(Table[C, R]) -> Update[C]
 
 // Errors
+pub(all) suberror DbError {
+  ConnectionFailed(String)
+  QueryFailed(sql~ : String, message~ : String)
+  NotFound(sql~ : String)
+  TooManyRows(sql~ : String, got~ : Int)
+  RollbackOnly(cause~ : Error)
+} derive(@debug.Debug)
+
+pub(all) suberror DecodeError {
+  MissingColumn(String)
+  TypeMismatch(column~ : String, expected~ : String)
+  Malformed(String)
+} derive(@debug.Debug)
+
+pub(all) suberror StatementError {
+  EmptyInsert(table~ : String)
+  ArityMismatch(table~ : String, expected~ : Int, got~ : Int)
+  EmptyUpdate(table~ : String)
+  DuplicateAlias(tbl~ : String)
+} derive(@debug.Debug)
 
 // Types and methods
+pub enum BinOp {
+  Eq
+  Ne
+  Gt
+  Gte
+  Lt
+  Lte
+  And
+  Or
+} derive(Eq, @debug.Debug)
+pub impl Show for BinOp
+
+pub struct Binding[In] {
+  columns : Array[String]
+  write : (In) -> Array[SqlValue]
+}
+pub fn[A, B] Binding::contramap(Self[A], (B) -> A) -> Self[B]
+pub fn[In] Binding::new(Array[String], (In) -> Array[SqlValue]) -> Self[In]
+pub fn[In] Binding::without(Self[In], Array[String]) -> Self[In]
+
+pub struct Column[T] {
+  tbl : String
+  name : String
+}
+pub fn[T : SqlOrd] Column::asc(Self[T]) -> OrderKey
+pub fn[T : SqlOrd] Column::desc(Self[T]) -> OrderKey
+pub fn[T : SqlEncode] Column::eq(Self[T], T) -> Expr[Bool]
+pub fn[T] Column::eq_col(Self[T], Self[T]) -> Expr[Bool]
+pub fn[T] Column::expr(Self[T]) -> Expr[T]
+pub fn[T : SqlEncode + SqlOrd] Column::gt(Self[T], T) -> Expr[Bool]
+pub fn[T : SqlEncode + SqlOrd] Column::gte(Self[T], T) -> Expr[Bool]
+pub fn[T : SqlEncode] Column::in_(Self[T], Array[T]) -> Expr[Bool]
+pub fn[T] Column::is_none(Self[T?]) -> Expr[Bool]
+pub fn[T] Column::is_some(Self[T?]) -> Expr[Bool]
+pub fn[T : SqlEncode + SqlOrd] Column::lt(Self[T], T) -> Expr[Bool]
+pub fn[T : SqlEncode + SqlOrd] Column::lte(Self[T], T) -> Expr[Bool]
+pub fn[T : SqlEncode] Column::ne(Self[T], T) -> Expr[Bool]
+pub fn[T] Column::new(tbl~ : String, name~ : String) -> Self[T]
+pub fn[T] Column::nullable(Self[T]) -> Self[T?]
+pub fn[T] Column::raw(Self[T]) -> RawExpr
+
+pub struct Delete[Cols] {
+  table_name : String
+  tbl : String
+  cols : Cols
+  wheres : Array[RawExpr]
+}
+pub fn[C] Delete::filter(Self[C], (C) -> Expr[Bool]) -> Self[C]
+pub async fn[E : Executor, C] Delete::run(Self[C], E) -> Int
+pub fn[C] Delete::to_sql(Self[C], dialect? : Dialect) -> (String, Array[SqlValue])
+
+pub(all) enum Dialect {
+  Sqlite
+  Postgres
+} derive(Eq, @debug.Debug)
+
+pub(all) enum Dir {
+  Asc
+  Desc
+} derive(Eq, @debug.Debug)
+pub impl Show for Dir
+
+pub struct Emitter {
+  dialect : Dialect
+  params : Array[SqlValue]
+}
+pub fn Emitter::expr(Self, RawExpr, parent? : Int) -> String
+pub fn Emitter::new(Dialect) -> Self
+
+pub struct Expr[T](RawExpr)
+pub fn[T : SqlOrd] Expr::asc(Self[T]) -> OrderKey
+pub fn[T : SqlOrd] Expr::desc(Self[T]) -> OrderKey
+pub fn[T : SqlEncode] Expr::eq(Self[T], T) -> Self[Bool]
+pub fn[T] Expr::eq_col(Self[T], Self[T]) -> Self[Bool]
+pub fn[T : SqlEncode + SqlOrd] Expr::gt(Self[T], T) -> Self[Bool]
+pub fn[T : SqlEncode + SqlOrd] Expr::gte(Self[T], T) -> Self[Bool]
+pub fn[T : SqlEncode] Expr::in_(Self[T], Array[T]) -> Self[Bool]
+pub fn[T] Expr::is_none(Self[T?]) -> Self[Bool]
+pub fn[T] Expr::is_some(Self[T?]) -> Self[Bool]
+pub fn[T : SqlEncode + SqlOrd] Expr::lt(Self[T], T) -> Self[Bool]
+pub fn[T : SqlEncode + SqlOrd] Expr::lte(Self[T], T) -> Self[Bool]
+pub fn[T : SqlEncode] Expr::ne(Self[T], T) -> Self[Bool]
+pub fn[T] Expr::raw(Self[T]) -> RawExpr
+pub impl BitAnd for Expr[Bool]
+pub impl BitOr for Expr[Bool]
+
+pub struct Insert {
+  table_name : String
+  columns : Array[String]
+  rows : Array[Array[SqlValue]]
+}
+pub async fn[E : Executor] Insert::run(Self, E) -> Int
+pub fn Insert::to_sql(Self, dialect? : Dialect) -> (String, Array[SqlValue]) raise StatementError
+
+pub struct Join {
+  kind : JoinKind
+  table_name : String
+  tbl : String
+  on : RawExpr
+}
+
+pub(all) enum JoinKind {
+  Inner
+  Left
+} derive(Eq, @debug.Debug)
+pub impl Show for JoinKind
+
+type Nullable[C, R]
+pub fn[C, R, T] Nullable::col(Self[C, R], (C) -> Column[T]) -> Column[T?]
+pub fn[C, R] Nullable::row(Self[C, R]) -> Selection[R?]
+
+pub struct OrderKey {
+  expr : RawExpr
+  dir : Dir
+}
+
+pub struct Query[Cols, A] {
+  source : String
+  source_tbl : String
+  joins : Array[Join]
+  cols : Cols
+  projection : Array[RawExpr]
+  wheres : Array[RawExpr]
+  group : Array[RawExpr]
+  order : Array[OrderKey]
+  limit_n : Int?
+  decode : (ArrayView[SqlValue]) -> A raise DecodeError
+}
+pub fn[C, A] Query::filter(Self[C, A], (C) -> Expr[Bool]) -> Self[C, A]
+pub async fn[E : Executor, C, A] Query::first(Self[C, A], E) -> A?
+pub fn[C, A, K : SqlDecode, S] Query::group_by(Self[C, A], (C) -> Column[K], (C) -> Reducer[S]) -> Self[C, (K, S)]
+pub fn[C1, C2, R2, A] Query::join(Self[C1, A], Table[C2, R2], (C1, C2) -> Expr[Bool]) -> Self[(C1, C2), A]
+pub fn[C1, C2, R2, A] Query::left_join(Self[C1, A], Table[C2, R2], (C1, C2) -> Expr[Bool]) -> Self[(C1, Nullable[C2, R2]), A]
+pub fn[C, A] Query::limit(Self[C, A], Int) -> Self[C, A]
+pub fn[C, R, O] Query::map(Self[C, R], (C) -> Selection[O]) -> Self[C, O]
+pub fn[C, D, A] Query::map_cols(Self[C, A], (C) -> D) -> Self[D, A]
+pub async fn[E : Executor, C, A] Query::one(Self[C, A], E) -> A
+pub fn[C, A] Query::order_by(Self[C, A], (C) -> Array[OrderKey]) -> Self[C, A]
+pub fn[C, A, S] Query::reduce(Self[C, A], (C) -> Reducer[S]) -> Self[C, S]
+pub async fn[E : Executor, C, A] Query::run(Self[C, A], E) -> Array[A]
+pub fn[C, A] Query::to_sql(Self[C, A], dialect? : Dialect, shape? : RowShape) -> (String, Array[SqlValue]) raise StatementError
+
+pub enum RawExpr {
+  Col(tbl~ : String, name~ : String)
+  Lit(SqlValue)
+  Bin(BinOp, RawExpr, RawExpr)
+  Unary(String, RawExpr)
+  InList(RawExpr, Array[SqlValue])
+  Agg(String, RawExpr?)
+} derive(@debug.Debug)
+
+type Reducer[Out]
+pub fn[A, B] Reducer::map(Self[A], (A) -> B raise DecodeError) -> Self[B]
+pub fn[A, B] Reducer::zip(Self[A], Self[B]) -> Self[(A, B)]
+
+pub(all) enum RowShape {
+  Plain
+  Typed
+} derive(Eq, @debug.Debug)
+
+pub struct Selection[Out] {
+  exprs : Array[RawExpr]
+  read : (ArrayView[SqlValue]) -> Out raise DecodeError
+}
+pub fn[A, B, R] Selection::into2(Self[(A, B)], (A, B) -> R) -> Self[R]
+pub fn[A, B, C, R] Selection::into3(Self[(A, B, C)], (A, B, C) -> R) -> Self[R]
+pub fn[A, B] Selection::map(Self[A], (A) -> B raise DecodeError) -> Self[B]
+pub fn[Out] Selection::new(Array[RawExpr], (ArrayView[SqlValue]) -> Out raise DecodeError) -> Self[Out]
+pub fn[Out] Selection::optional(Self[Out]) -> Self[Out?]
+pub fn[Out] Selection::optional_on(Self[Out], key~ : Int) -> Self[Out?]
+pub fn[A, B] Selection::zip(Self[A], Self[B]) -> Self[(A, B)]
+
+pub(all) enum SqlValue {
+  VNull
+  VInt(Int64)
+  VDouble(Double)
+  VText(String)
+  VBool(Bool)
+  VBytes(Bytes)
+} derive(Eq, @debug.Debug)
+
+pub struct Table[Cols, R] {
+  table_name : String
+  tbl : String
+  cols : Cols
+  all : Selection[R]
+  write : Binding[R]
+}
+pub fn[C, R] Table::new(table_name~ : String, tbl~ : String, cols~ : C, all~ : Selection[R], write~ : Binding[R]) -> Self[C, R]
+
+pub struct Tx[D] {
+  db : D
+  mut depth : Int
+  mut failure : Error?
+}
+pub fn[D] Tx::driver(Self[D]) -> D
+pub fn[D] Tx::is_open(Self[D]) -> Bool
+pub fn[D] Tx::new(D) -> Self[D]
+pub impl[D : Driver] Executor for Tx[D]
+
+pub struct Update[Cols] {
+  table_name : String
+  tbl : String
+  cols : Cols
+  sets : Array[(String, RawExpr)]
+  wheres : Array[RawExpr]
+}
+pub fn[C] Update::filter(Self[C], (C) -> Expr[Bool]) -> Self[C]
+pub async fn[E : Executor, C] Update::run(Self[C], E) -> Int
+pub fn[C, T : SqlEncode] Update::set(Self[C], (C) -> Column[T], T) -> Self[C]
+pub fn[C] Update::to_sql(Self[C], dialect? : Dialect) -> (String, Array[SqlValue]) raise StatementError
 
 // Type aliases
+pub type Row = ArrayView[SqlValue]
 
 // Traits
+pub(open) trait Driver : Executor {
+  async fn begin(Self) -> Unit raise DbError
+  async fn commit(Self) -> Unit raise DbError
+  async fn rollback(Self) -> Unit raise DbError
+}
+
+pub(open) trait Executor {
+  async fn query(Self, String, Array[SqlValue], columns~ : Int) -> Array[Array[SqlValue]] raise DbError
+  async fn execute(Self, String, Array[SqlValue]) -> Int raise DbError
+  fn dialect(Self) -> Dialect
+  fn row_shape(Self) -> RowShape = _
+}
+
+pub(open) trait SqlDecode {
+  fn decode(SqlValue, String) -> Self raise DecodeError
+}
+pub impl SqlDecode for Bool
+pub impl SqlDecode for Int
+pub impl SqlDecode for Double
+pub impl SqlDecode for String
+pub impl[T : SqlDecode] SqlDecode for T?
+
+pub(open) trait SqlEncode {
+  fn to_sql_value(Self) -> SqlValue
+}
+pub impl SqlEncode for Bool
+pub impl SqlEncode for Int
+pub impl SqlEncode for Int64
+pub impl SqlEncode for Double
+pub impl SqlEncode for String
+pub impl[T : SqlEncode] SqlEncode for T?
+
+pub(open) trait SqlNum {
+}
+pub impl SqlNum for Int
+pub impl SqlNum for Int64
+pub impl SqlNum for Double
+
+pub(open) trait SqlOrd {
+}
+pub impl SqlOrd for Int
+pub impl SqlOrd for Int64
+pub impl SqlOrd for Double
+pub impl SqlOrd for String
+pub impl[T : SqlOrd] SqlOrd for T?

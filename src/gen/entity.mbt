@@ -1,6 +1,6 @@
 ///|
 /// A foreign key declared on a column, e.g.
-/// `#cairn.column(references="accounts.id", on_delete="cascade")`.
+/// `#aya.column(references="accounts.id", on_delete="cascade")`.
 pub struct RefSpec {
   /// Referenced table name (the database name, not the MoonBit type).
   table : String
@@ -31,12 +31,12 @@ pub struct FieldSpec {
   /// is what the decoder already believes, so letting an attribute contradict
   /// it would let the schema and the row type disagree silently.
   nullable : Bool
-  /// SQL type text from `#cairn.column(type="...")`.
+  /// SQL type text from `#aya.column(type="...")`.
   ///
   /// `None` means "infer from the MoonBit type", which only works for the
   /// types `SqlEncode` covers. A wrapper type has to say what it stores.
   sql_type : String?
-  /// Raw SQL expression from `#cairn.column(default="...")`, emitted verbatim
+  /// Raw SQL expression from `#aya.column(default="...")`, emitted verbatim
   /// after `DEFAULT`.
   default_sql : String?
   unique : Bool
@@ -45,7 +45,7 @@ pub struct FieldSpec {
 } derive(Debug, Eq)
 
 ///|
-/// A secondary index declared on the entity with `#cairn.index(...)`.
+/// A secondary index declared on the entity with `#aya.index(...)`.
 pub struct IndexSpec {
   name : String
   /// Database column names, in index order.
@@ -54,7 +54,7 @@ pub struct IndexSpec {
 } derive(Debug, Eq)
 
 ///|
-/// A struct carrying `#cairn.table`, lowered into everything the emitter needs.
+/// A struct carrying `#aya.table`, lowered into everything the emitter needs.
 ///
 /// This describes the *row type*: the flat shape of one database row. A domain
 /// type is a separate thing that the programmer maps to and from.
@@ -73,24 +73,24 @@ pub struct EntitySpec {
 
 ///|
 pub(all) suberror EntityError {
-  /// A `#cairn.table` was found on something that is not a record struct.
+  /// A `#aya.table` was found on something that is not a record struct.
   NotARecord(type_name~ : String)
-  /// `#cairn.table` needs a table name and no default is safe to invent.
+  /// `#aya.table` needs a table name and no default is safe to invent.
   MissingTable(type_name~ : String)
-  /// More than one field claimed `#cairn.id`.
+  /// More than one field claimed `#aya.id`.
   DuplicatePrimaryKey(type_name~ : String)
   /// An attribute argument was present but not a value this generator accepts.
   InvalidArg(type_name~ : String, key~ : String, value~ : String)
-  /// `#cairn.index` named a field the struct does not have.
+  /// `#aya.index` named a field the struct does not have.
   UnknownIndexColumn(type_name~ : String, column~ : String)
-  /// `#cairn.index` without any column to index.
+  /// `#aya.index` without any column to index.
   EmptyIndex(type_name~ : String)
   /// An argument name the MoonBit toolchain cannot round-trip.
   ReservedArg(type_name~ : String, key~ : String, use_instead~ : String)
 } derive(Debug)
 
 ///|
-/// Collect every `#cairn.table` declaration in a parsed file.
+/// Collect every `#aya.table` declaration in a parsed file.
 ///
 /// Declarations without the attribute are skipped, so an entity file may hold
 /// ordinary MoonBit code alongside entities.
@@ -109,7 +109,7 @@ pub fn collect_entities(
 }
 
 ///|
-/// Find the `#cairn.table` attribute among a declaration's attributes.
+/// Find the `#aya.table` attribute among a declaration's attributes.
 fn entity_attr(
   attrs : @list.List[@attribute.Attribute],
 ) -> Attr? raise AttrError {
@@ -162,8 +162,8 @@ fn lower_entity(decl : @syntax.TypeDecl, attr : Attr) -> EntitySpec raise Error 
             if parsed.arg("name") is Some(n) {
               column = n
             }
-            // Not `type=`: `moon fmt` rewrites `#cairn.column(type="...")`
-            // into `##cairn.column(...)`, which then fails to lex. Rejecting it
+            // Not `type=`: `moon fmt` rewrites `#aya.column(type="...")`
+            // into `##aya.column(...)`, which then fails to lex. Rejecting it
             // here costs one error message; accepting it costs a file that
             // stops compiling the next time someone formats it.
             if parsed.arg("type") is Some(_) {
@@ -264,10 +264,10 @@ fn ref_action(
 }
 
 ///|
-/// Lower every `#cairn.index(...)` on the declaration.
+/// Lower every `#aya.index(...)` on the declaration.
 ///
 /// Columns are named by MoonBit field, not by database column, so renaming a
-/// column with `#cairn.column(name=...)` does not silently break its index.
+/// column with `#aya.column(name=...)` does not silently break its index.
 fn lower_indexes(
   attrs : @list.List[@attribute.Attribute],
   type_name : String,
@@ -322,7 +322,7 @@ fn default_alias(table : String) -> String {
 /// Render a parsed type back to MoonBit source text.
 ///
 /// The emitter needs the type twice, once inside `Column[_]` and once as the
-/// entity field type, so the round trip has to be faithful for the types cairn
+/// entity field type, so the round trip has to be faithful for the types aya
 /// can actually store.
 pub fn render_type(t : @syntax.Type) -> String {
   match t {
@@ -351,16 +351,16 @@ pub impl Show for EntityError with fn output(self, logger) {
   logger.write_string(
     match self {
       NotARecord(type_name~) =>
-        "`\{type_name}`: #cairn.table only goes on a record struct"
+        "`\{type_name}`: #aya.table only goes on a record struct"
       MissingTable(type_name~) =>
-        "`\{type_name}`: #cairn.table needs `name=\"...\"`"
+        "`\{type_name}`: #aya.table needs `name=\"...\"`"
       DuplicatePrimaryKey(type_name~) =>
-        "`\{type_name}`: more than one field is marked #cairn.id"
+        "`\{type_name}`: more than one field is marked #aya.id"
       InvalidArg(type_name~, key~, value~) =>
-        "`\{type_name}`: `\{key}=\"\{value}\"` is not a value cairn accepts"
+        "`\{type_name}`: `\{key}=\"\{value}\"` is not a value aya accepts"
       UnknownIndexColumn(type_name~, column~) =>
-        "`\{type_name}`: #cairn.index names `\{column}`, which is not a field"
-      EmptyIndex(type_name~) => "`\{type_name}`: #cairn.index has no columns"
+        "`\{type_name}`: #aya.index names `\{column}`, which is not a field"
+      EmptyIndex(type_name~) => "`\{type_name}`: #aya.index has no columns"
       ReservedArg(type_name~, key~, use_instead~) =>
         "`\{type_name}`: `\{key}=` cannot be used in an attribute, because `moon fmt` rewrites it into something that will not lex; write `\{use_instead}=` instead"
     },

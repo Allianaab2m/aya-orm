@@ -1,16 +1,16 @@
 // What can be checked without a server is the translation either side of the
 // wire, and that is where the driver's own judgement lives. The statements
-// themselves are cairn's, and the protocol is the client's; neither is retested
+// themselves are aya's, and the protocol is the client's; neither is retested
 // here.
 
 ///|
 /// The integer width is the server's to choose, not the value's.
 ///
-/// This is the reason `Param` exists at all: cairn only has `VInt(Int64)`, so
+/// This is the reason `Param` exists at all: aya only has `VInt(Int64)`, so
 /// without it every integer would claim to be an `int8` and every `int4`
 /// column would reject it.
 test "an integer parameter fits any integer column" {
-  let n = Param::Param(@sql.VInt(7))
+  let n = Param::Param(@aya.VInt(7))
   assert_true(@client.ToSql::accepts(n, @client.Type::int2()))
   assert_true(@client.ToSql::accepts(n, @client.Type::int4()))
   assert_true(@client.ToSql::accepts(n, @client.Type::int8()))
@@ -24,7 +24,7 @@ test "an integer parameter fits any integer column" {
 test "an integer parameter is encoded at the column's width" {
   fn width(type_) raise {
     let buf = @buffer.Buffer::Buffer()
-    let is_null = @client.ToSql::to_sql(Param::Param(@sql.VInt(7)), type_, buf)
+    let is_null = @client.ToSql::to_sql(Param::Param(@aya.VInt(7)), type_, buf)
     (is_null is Yes, buf.length())
   }
 
@@ -38,7 +38,7 @@ test "an integer parameter is encoded at the column's width" {
 /// put. Nothing is written for it: the length prefix in front of the parameter
 /// is what says NULL, which is what `Yes` reports back.
 test "a null parameter fits any column and writes nothing" {
-  let null = Param::Param(@sql.VNull)
+  let null = Param::Param(@aya.VNull)
   for
     type_ in [
       @client.Type::int4(),
@@ -59,39 +59,39 @@ test "a null parameter fits any column and writes nothing" {
 test "the other scalars keep the client's own type rules" {
   assert_true(
     @client.ToSql::accepts(
-      Param::Param(@sql.VText("x")),
+      Param::Param(@aya.VText("x")),
       @client.Type::varchar(),
     ),
   )
   assert_false(
     @client.ToSql::accepts(
-      Param::Param(@sql.VText("2026-08-20")),
+      Param::Param(@aya.VText("2026-08-20")),
       @client.Type::date(),
     ),
   )
   assert_true(
-    @client.ToSql::accepts(Param::Param(@sql.VBool(true)), @client.Type::bool()),
+    @client.ToSql::accepts(Param::Param(@aya.VBool(true)), @client.Type::bool()),
   )
   assert_true(
     @client.ToSql::accepts(
-      Param::Param(@sql.VDouble(1.5)),
+      Param::Param(@aya.VDouble(1.5)),
       @client.Type::float8(),
     ),
   )
   assert_true(
     @client.ToSql::accepts(
-      Param::Param(@sql.VBytes(b"\x00")),
+      Param::Param(@aya.VBytes(b"\x00")),
       @client.Type::bytea(),
     ),
   )
 }
 
 ///|
-/// cairn hands a driver one flat parameter list, and it comes back out in the
+/// aya hands a driver one flat parameter list, and it comes back out in the
 /// same order — the placeholders are numbered, so order is all that connects
 /// the two.
 test "the parameter list keeps its order" {
-  let ps = params([@sql.VInt(1), @sql.VNull, @sql.VText("alice")])
+  let ps = params([@aya.VInt(1), @aya.VNull, @aya.VText("alice")])
   inspect(ps.length(), content="3")
   debug_inspect(
     ps.map(p => @client.ToSql::moonbit_type_name(p)),
@@ -107,9 +107,9 @@ test "config fills in the usual defaults" {
   let c = config(host="localhost", user="alliana")
   inspect(c.database, content="alliana")
   inspect(c.port, content="5432")
-  inspect(c.application_name, content="cairn")
+  inspect(c.application_name, content="aya")
   inspect(
-    config(host="localhost", user="alliana", database="cairn").database,
-    content="cairn",
+    config(host="localhost", user="alliana", database="aya").database,
+    content="aya",
   )
 }

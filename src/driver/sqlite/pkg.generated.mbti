@@ -1,8 +1,8 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "Allianaab2m/cairn/driver/sqlite"
+package "Allianaab2m/aya/driver/sqlite"
 
 import {
-  "Allianaab2m/cairn/sql",
+  "Allianaab2m/aya",
   "moonbit-community/sqlite3",
 }
 
@@ -15,11 +15,11 @@ pub async fn[A] with_connection(String, async (Sqlite) -> A) -> A
 pub struct Sqlite {
   conn : @sqlite3.Connection
 }
-pub fn Sqlite::close(Self) -> Unit raise @sql.DbError
+pub fn Sqlite::close(Self) -> Unit raise @aya.DbError
 pub fn Sqlite::connection(Self) -> @sqlite3.Connection
-pub fn Sqlite::open(String) -> Self raise @sql.DbError
-pub impl @sql.Driver for Sqlite
-pub impl @sql.Executor for Sqlite
+pub fn Sqlite::open(String) -> Self raise @aya.DbError
+pub impl @aya.Driver for Sqlite
+pub impl @aya.Executor for Sqlite
 
 // Type aliases
 

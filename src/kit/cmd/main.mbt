@@ -1,5 +1,5 @@
 ///|
-/// `cairn-kit` — the schema half of cairn.
+/// `aya-kit` — the schema half of aya.
 ///
 /// Everything with a decision in it lives in the `kit`, `ddl` and `gen`
 /// libraries; this file is the part that is allowed to touch the filesystem.
@@ -7,7 +7,7 @@ fn main {
   let argv = @env.args()[1:]
   run(argv) catch {
     e => {
-      println("cairn-kit: \{e}")
+      println("aya-kit: \{e}")
       @sys.exit(1)
     }
   }
@@ -15,17 +15,17 @@ fn main {
 
 ///|
 const USAGE =
-  #|cairn-kit — DDL and migrations for cairn entities
+  #|aya-kit — DDL and migrations for aya entities
   #|
   #|usage:
-  #|  cairn-kit generate [--name <slug>]   diff the schema and write a migration
-  #|  cairn-kit status                     show what generate would write
-  #|  cairn-kit ddl                        print CREATE statements for the whole schema
-  #|  cairn-kit codegen [<file> -o <out>]  (re)generate the .g.mbt companions
-  #|  cairn-kit init                       write cairn.json and the migrations directory
+  #|  aya-kit generate [--name <slug>]   diff the schema and write a migration
+  #|  aya-kit status                     show what generate would write
+  #|  aya-kit ddl                        print CREATE statements for the whole schema
+  #|  aya-kit codegen [<file> -o <out>]  (re)generate the .g.mbt companions
+  #|  aya-kit init                       write aya.json and the migrations directory
   #|
   #|options:
-  #|  --config <path>    config file (default: cairn.json)
+  #|  --config <path>    config file (default: aya.json)
   #|  --schema <path>    file or directory to scan; repeatable, overrides the config
   #|  --out <dir>        migrations directory, overrides the config
   #|  --dialect <name>   sqlite | postgres, overrides the config
@@ -135,7 +135,7 @@ fn parse_options(argv : ArrayView[String]) -> Options raise CliError {
 ///|
 /// Read the config file, then let the flags override it.
 ///
-/// A missing `cairn.json` is not an error unless it was asked for by name: a
+/// A missing `aya.json` is not an error unless it was asked for by name: a
 /// single-package project can run the tool with flags alone.
 fn load_config(opts : Options) -> @kit.Config raise Error {
   let path = opts.config.unwrap_or(@kit.CONFIG_FILE)
@@ -178,7 +178,7 @@ fn generate(config : @kit.Config, opts : Options) -> Unit raise Error {
     name?=opts.name,
   )
   match plan.migration {
-    None => println("cairn-kit: no schema changes")
+    None => println("aya-kit: no schema changes")
     Some(migration) => {
       ensure_dir(config.out)
       ensure_dir(config.meta_dir())
@@ -198,7 +198,7 @@ fn generate(config : @kit.Config, opts : Options) -> Unit raise Error {
         plan.journal.to_json_string(),
       )
       println(@kit.describe(plan.changes))
-      println("cairn-kit: wrote \{config.migration_path(migration.tag)}")
+      println("aya-kit: wrote \{config.migration_path(migration.tag)}")
     }
   }
 }
@@ -215,7 +215,7 @@ fn status(config : @kit.Config, _opts : Options) -> Unit raise Error {
   let changes = @ddl.diff(previous, next)
   println(@kit.describe(changes))
   if !changes.is_empty() {
-    println("run `cairn-kit generate` to write the migration")
+    println("run `aya-kit generate` to write the migration")
   }
 }
 
@@ -255,7 +255,7 @@ fn codegen(config : @kit.Config, opts : Options) -> Unit raise Error {
         @fs.write_string_to_file(companion_path(path), @gen.emit_file(specs))
         count = count + 1
       }
-      println("cairn-kit: generated \{count} file(s)")
+      println("aya-kit: generated \{count} file(s)")
     }
     ([input], Some(output)) => {
       let source = @fs.read_file_to_string(input)
@@ -271,7 +271,7 @@ fn codegen(config : @kit.Config, opts : Options) -> Unit raise Error {
 fn scaffold(config : @kit.Config) -> Unit raise Error {
   if !@fs.path_exists(@kit.CONFIG_FILE) {
     @fs.write_string_to_file(@kit.CONFIG_FILE, config.to_json_string())
-    println("cairn-kit: wrote \{@kit.CONFIG_FILE}")
+    println("aya-kit: wrote \{@kit.CONFIG_FILE}")
   }
   ensure_dir(config.out)
   ensure_dir(config.meta_dir())
@@ -280,7 +280,7 @@ fn scaffold(config : @kit.Config) -> Unit raise Error {
       config.journal_path(),
       @kit.Journal::new(config.dialect).to_json_string(),
     )
-    println("cairn-kit: wrote \{config.journal_path()}")
+    println("aya-kit: wrote \{config.journal_path()}")
   }
 }
 
@@ -300,11 +300,13 @@ fn read_journal(config : @kit.Config) -> @kit.Journal raise Error {
   let path = config.journal_path()
   guard @fs.path_exists(path) else { return @kit.Journal::new(config.dialect) }
   let journal = @kit.Journal::from_json_string(@fs.read_file_to_string(path))
-  guard journal.dialect == config.dialect else {
-    raise @kit.DialectMismatch(
-      journal=@ddl.dialect_name(journal.dialect),
-      config=@ddl.dialect_name(config.dialect),
-    )
+  // Compared by name rather than by value: the names are what the mismatch has
+  // to report anyway, and it saves this package an import it has no other use
+  // for.
+  let written_for = @ddl.dialect_name(journal.dialect)
+  let asked_for = @ddl.dialect_name(config.dialect)
+  guard written_for == asked_for else {
+    raise @kit.DialectMismatch(journal=written_for, config=asked_for)
   }
   journal
 }
