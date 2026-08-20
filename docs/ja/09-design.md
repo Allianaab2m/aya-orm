@@ -115,7 +115,7 @@ API のほとんどはこのどれかに従っています。
 
 それ以外の示す価値のあるものは、ここで重複させるのではなく実装されている場所で
 固定してあります。結合・`Nullable`・`map_cols`・`split2` は
-`src/sql/join_test.mbt`、集約は `src/sql/reducer_test.mbt`、入れ子トランザクションは
+`src/join_test.mbt`、集約は `src/reducer_test.mbt`、入れ子トランザクションは
 `src/driver/fake/fake_test.mbt` と、実データベースに対しては
 `src/driver/sqlite/sqlite_test.mbt` です。
 

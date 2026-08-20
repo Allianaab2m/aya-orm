@@ -57,11 +57,11 @@ const JSONB_OID : UInt = 3802
 /// `VInt(Int64)` by the time it reaches a driver. So the wrapper exists to put
 /// the distinction back, choosing the encoding from the type the server
 /// inferred rather than from how wide the MoonBit value happens to be.
-pub(all) struct Param(@sql.SqlValue) derive(Eq, Debug)
+pub(all) struct Param(@aya.SqlValue) derive(Eq, Debug)
 
 ///|
 /// Wrap aya's parameter list for the client.
-pub fn params(values : Array[@sql.SqlValue]) -> Array[&@client.ToSql] {
+pub fn params(values : Array[@aya.SqlValue]) -> Array[&@client.ToSql] {
   values.map(v => Param(v) as &@client.ToSql)
 }
 
@@ -127,7 +127,7 @@ fn cell(
   row : @client.Row,
   index : Int,
   sql : String,
-) -> @sql.SqlValue raise @sql.DbError {
+) -> @aya.SqlValue raise @aya.DbError {
   if row.get_raw(index) is None {
     return VNull
   }
@@ -163,7 +163,7 @@ fn cell(
           let s : String = row.get(index)
           VText(s)
         } else {
-          raise @sql.QueryFailed(
+          raise @aya.QueryFailed(
             sql~,
             message="column \{index} has PostgreSQL type \"\{type_.name}\", which aya has no SqlValue for; cast it in the query, for example `\{row.columns[index].name}::text`",
           )
@@ -198,12 +198,12 @@ fn is_text(type_ : @client.Type) -> Bool {
 /// everything the client can raise has to land in one of its four cases. The
 /// split that matters to a caller is "the connection is gone" versus "this
 /// statement did not work", and that is the split kept here.
-fn as_db_error(sql : String, e : Error) -> @sql.DbError {
+fn as_db_error(sql : String, e : Error) -> @aya.DbError {
   match e {
     @client.Closed(m) | @client.Authentication(m) | @client.Ssl(m) =>
-      @sql.ConnectionFailed(m)
+      @aya.ConnectionFailed(m)
     @client.Database(d) =>
-      @sql.QueryFailed(
+      @aya.QueryFailed(
         sql~,
         message=match d.code {
           Some(code) => "\{code}: \{d.message}"
@@ -211,7 +211,7 @@ fn as_db_error(sql : String, e : Error) -> @sql.DbError {
         },
       )
     @client.WrongType(w) =>
-      @sql.QueryFailed(
+      @aya.QueryFailed(
         sql~,
         message="cannot read PostgreSQL \"\{w.postgres_type.name}\" as \{w.moonbit_type}",
       )
@@ -220,8 +220,8 @@ fn as_db_error(sql : String, e : Error) -> @sql.DbError {
     | @client.Decode(m)
     | @client.ColumnNotFound(m)
     | @client.RowCount(m)
-    | @client.UnexpectedMessage(m) => @sql.QueryFailed(sql~, message=m)
+    | @client.UnexpectedMessage(m) => @aya.QueryFailed(sql~, message=m)
     other =>
-      @sql.QueryFailed(sql~, message="unexpected client failure: \{other}")
+      @aya.QueryFailed(sql~, message="unexpected client failure: \{other}")
   }
 }

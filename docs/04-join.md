@@ -43,11 +43,11 @@ Both examples in this chapter read against these two tables.
 `bob` has written nothing. That is the row the two join kinds disagree about.
 
 ```moonbit
-@sql.from(User::table())
-|> @sql.Query::join(Post::table(), (u, p) => u.id.eq_col(p.author_id))
-|> @sql.Query::filter(c => c.0.age.gte(18) & c.1.title.ne("draft"))
-|> @sql.Query::map(c => @sql.sel2(c.0.name, c.1.title))
-|> @sql.Query::order_by(c => [c.1.id.desc()])
+@aya.from(User::table())
+|> @aya.Query::join(Post::table(), (u, p) => u.id.eq_col(p.author_id))
+|> @aya.Query::filter(c => c.0.age.gte(18) & c.1.title.ne("draft"))
+|> @aya.Query::map(c => @aya.sel2(c.0.name, c.1.title))
+|> @aya.Query::order_by(c => [c.1.id.desc()])
 ```
 
 ```sql
@@ -87,8 +87,8 @@ It turns a function of two named arguments into the single-argument function
 the combinators expect.
 
 ```moonbit
-|> @sql.Query::filter(@sql.split2((u, p) => u.age.gte(18) & p.title.ne("draft")))
-|> @sql.Query::map(@sql.split2((_u, p) => @sql.sel(p.title)))
+|> @aya.Query::filter(@aya.split2((u, p) => u.age.gte(18) & p.title.ne("draft")))
+|> @aya.Query::map(@aya.split2((_u, p) => @aya.sel(p.title)))
 ```
 
 Deliberately stops at two. With three tables the arguments start needing
@@ -109,12 +109,12 @@ far does not.
 ```moonbit
 pub struct TicketJoin {
   ticket     : TicketCols
-  assignment : @sql.Nullable[AssignmentCols, AssignmentRow]
-  closure    : @sql.Nullable[ClosureCols, ClosureRow]
+  assignment : @aya.Nullable[AssignmentCols, AssignmentRow]
+  closure    : @aya.Nullable[ClosureCols, ClosureRow]
 }
 
-|> @sql.Query::map_cols(c => { ticket: c.0.0, assignment: c.0.1, closure: c.1 })
-|> @sql.Query::filter(j => j.ticket.id.eq(id))
+|> @aya.Query::map_cols(c => { ticket: c.0.0, assignment: c.0.1, closure: c.1 })
+|> @aya.Query::filter(j => j.ticket.id.eq(id))
 ```
 
 The nesting is now confined to one line. Everything after it reads
@@ -152,9 +152,9 @@ either exists or does not**, and inside `Some` every field keeps the type the
 table declared.
 
 ```moonbit
-@sql.from(User::table())
-|> @sql.Query::left_join(Post::table(), (u, p) => u.id.eq_col(p.author_id))
-|> @sql.Query::map(c => @sql.sel(c.0.name).zip(c.1.row()))
+@aya.from(User::table())
+|> @aya.Query::left_join(Post::table(), (u, p) => u.id.eq_col(p.author_id))
+|> @aya.Query::map(c => @aya.sel(c.0.name).zip(c.1.row()))
 ```
 
 ```sql
@@ -202,7 +202,7 @@ Reaching a column of an outer-joined table yields `Column[T?]`, which is
 exactly what "nothing matched" needs to be tested against:
 
 ```moonbit
-|> @sql.Query::filter(j => j.assignment.col(a => a.ticket_id).is_none())
+|> @aya.Query::filter(j => j.assignment.col(a => a.ticket_id).is_none())
 // -> WHERE ta."ticket_id" IS NULL
 ```
 

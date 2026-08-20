@@ -75,10 +75,10 @@ pub(open) trait Driver: Executor {
 /// instead of asking the database to `BEGIN` twice.
 ///
 /// ```moonbit nocheck
-/// let db = @sql.Tx::new(driver)
+/// let db = @aya.Tx::new(driver)
 /// let tickets = SqlTickets::new(db)
 /// let users = SqlUsers::new(db)
-/// @sql.transaction(db, _ => {
+/// @aya.transaction(db, _ => {
 ///   tickets.save(a) // both saves land in one transaction
 ///   users.save(b)
 /// })

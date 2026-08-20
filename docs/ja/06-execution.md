@@ -73,7 +73,7 @@ pub async fn[E : Executor, C] Delete::run(Delete[C], E) -> Int
 ドメインエンティティで型付けされたテーブルに対しては、返ってくるのはドメインの値です。
 
 ```moonbit
-@sql.from(orders()).run(db)
+@aya.from(orders()).run(db)
 // => [Shipped(id=1, items=3, submitted_at="2026-08-01", tracking="ZZ123"),
 //     Draft(id=2, items=1)]
 ```
@@ -98,11 +98,11 @@ pub async fn[D : Driver, A] transaction(Tx[D], async (Tx[D]) -> A) -> A
 果たすので、本体は途中で `raise` しうるふつうの関数です。
 
 ```moonbit
-let db = @sql.Tx::new(driver)
+let db = @aya.Tx::new(driver)
 
-@sql.transaction(db, conn => {
-  let removed = @sql.delete(orders(), o => o.id.eq(2)).run(conn)
-  let added = @sql.insert(orders(), Submitted(id=2, items=1, submitted_at=at)).run(conn)
+@aya.transaction(db, conn => {
+  let removed = @aya.delete(orders(), o => o.id.eq(2)).run(conn)
+  let added = @aya.insert(orders(), Submitted(id=2, items=1, submitted_at=at)).run(conn)
   (removed, added)
 })
 ```
@@ -135,7 +135,7 @@ BEGIN と COMMIT を送るのは最も外側のスコープだけです。内側
 収まります。
 
 ```moonbit
-@sql.transaction(db, _ => {
+@aya.transaction(db, _ => {
   tickets.save(a)   // save は自分の仕事を括るが……
   users.save(b)     // ……ここでは両方が外側のトランザクションに合流する
 })
@@ -197,14 +197,14 @@ pub(all) suberror DbError {
 
 ```moonbit
 @sqlite.with_connection(":memory:", db => {
-  let tickets = @sql.from(TicketRow::table()).run(db)
+  let tickets = @aya.from(TicketRow::table()).run(db)
   ...
 })
 
 @postgres.with_connection(
   @postgres.config(host="localhost", user="alliana", database="aya"),
   db => {
-    let tickets = @sql.from(TicketRow::table()).run(db)
+    let tickets = @aya.from(TicketRow::table()).run(db)
     ...
   },
 )
@@ -277,7 +277,7 @@ pub fn FakeDb::fail(FakeDb, String, after? : Int) -> Unit
 
 ```moonbit
 let db = @fake.FakeDb::new(counts=[1, 1])
-let repo = SqlTickets::new(@sql.Tx::new(db))
+let repo = SqlTickets::new(@aya.Tx::new(db))
 repo.save(Open(id=1, subject="printer on fire"))
 db.log  // ["BEGIN", "QUERY", "EXEC", "COMMIT"]
 ```

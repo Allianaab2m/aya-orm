@@ -17,7 +17,7 @@ let sample : String =
 ///|
 fn snap(
   src : String,
-  dialect? : @sql.Dialect = Sqlite,
+  dialect? : @aya.Dialect = Sqlite,
 ) -> @ddl.Snapshot raise Error {
   @ddl.snapshot_of(@gen.entities_of(src, name="test.mbt"), dialect~)
 }

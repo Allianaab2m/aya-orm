@@ -60,7 +60,7 @@ pub fn plan(
 /// else.
 pub fn snapshot_of_sources(
   sources : Array[(String, String)],
-  dialect~ : @sql.Dialect,
+  dialect~ : @aya.Dialect,
 ) -> @ddl.Snapshot raise Error {
   let specs = []
   for src in sources {

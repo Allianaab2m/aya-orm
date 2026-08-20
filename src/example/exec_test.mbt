@@ -9,23 +9,23 @@ async test "queries return domain entities" {
   let db = @fake.FakeDb::new(results=[
     [
       [
-        @sql.SqlValue::VInt(1),
-        @sql.SqlValue::VInt(3),
-        @sql.SqlValue::VText("shipped"),
-        @sql.SqlValue::VText("2026-08-01"),
-        @sql.SqlValue::VText("ZZ123"),
+        @aya.SqlValue::VInt(1),
+        @aya.SqlValue::VInt(3),
+        @aya.SqlValue::VText("shipped"),
+        @aya.SqlValue::VText("2026-08-01"),
+        @aya.SqlValue::VText("ZZ123"),
       ],
       [
-        @sql.SqlValue::VInt(2),
-        @sql.SqlValue::VInt(1),
-        @sql.SqlValue::VText("draft"),
-        @sql.SqlValue::VNull,
-        @sql.SqlValue::VNull,
+        @aya.SqlValue::VInt(2),
+        @aya.SqlValue::VInt(1),
+        @aya.SqlValue::VText("draft"),
+        @aya.SqlValue::VNull,
+        @aya.SqlValue::VNull,
       ],
     ],
   ])
   debug_inspect(
-    @sql.from(orders()).run(db),
+    @aya.from(orders()).run(db),
     content=(
       #|[
       #|  Shipped(id=1, items=3, submitted_at="2026-08-01", tracking="ZZ123"),
@@ -40,9 +40,9 @@ async test "queries return domain entities" {
 /// without any hand-written flattening at the call site.
 async test "a state transition runs inside one transaction" {
   let db = @fake.FakeDb::new(counts=[1, 1])
-  let moved = @sql.transaction(@sql.Tx::new(db), conn => {
-    let removed = @sql.delete(orders(), o => o.id.eq(2)).run(conn)
-    let added = @sql.insert(
+  let moved = @aya.transaction(@aya.Tx::new(db), conn => {
+    let removed = @aya.delete(orders(), o => o.id.eq(2)).run(conn)
+    let added = @aya.insert(
       orders(),
       Submitted(id=2, items=1, submitted_at="2026-08-01"),
     ).run(conn)
@@ -67,9 +67,9 @@ async test "a state transition runs inside one transaction" {
 async test "a failed transition rolls the whole transition back" {
   let db = @fake.FakeDb::new(counts=[1])
   try {
-    let _ : Unit = @sql.transaction(@sql.Tx::new(db), conn => {
-      let _ = @sql.delete(orders(), o => o.id.eq(2)).run(conn)
-      raise @sql.Malformed("order 2 is not submittable")
+    let _ : Unit = @aya.transaction(@aya.Tx::new(db), conn => {
+      let _ = @aya.delete(orders(), o => o.id.eq(2)).run(conn)
+      raise @aya.Malformed("order 2 is not submittable")
     })
     fail("expected the error to propagate")
   } catch {

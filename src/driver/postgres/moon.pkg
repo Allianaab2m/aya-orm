@@ -1,5 +1,5 @@
 import {
-  "Allianaab2m/aya/sql",
+  "Allianaab2m/aya",
   "moonbit-community/postgres/client",
   "moonbit-community/postgres/protocol" @proto,
   "moonbitlang/async",

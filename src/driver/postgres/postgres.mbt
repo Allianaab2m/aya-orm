@@ -78,7 +78,7 @@ pub async fn[A] with_connection(
 }
 
 ///|
-pub impl @sql.Executor for Postgres with fn query(
+pub impl @aya.Executor for Postgres with fn query(
   self,
   sql,
   parameters,
@@ -100,15 +100,15 @@ pub impl @sql.Executor for Postgres with fn query(
 }
 
 ///|
-pub impl @sql.Executor for Postgres with fn execute(self, sql, parameters) {
+pub impl @aya.Executor for Postgres with fn execute(self, sql, parameters) {
   self.client.execute(sql, params=params(parameters)) catch {
     e => raise as_db_error(sql, e)
   }
 }
 
 ///|
-pub impl @sql.Executor for Postgres with fn dialect(_self) {
-  @sql.Dialect::Postgres
+pub impl @aya.Executor for Postgres with fn dialect(_self) {
+  @aya.Dialect::Postgres
 }
 
 ///|
@@ -120,17 +120,17 @@ pub impl @sql.Executor for Postgres with fn dialect(_self) {
 /// guarantee one level up, and its `Driver` contract is three independent
 /// calls. Sending the statements keeps the driver a translation layer instead
 /// of making it hold transaction state of its own.
-pub impl @sql.Driver for Postgres with fn begin(self) {
+pub impl @aya.Driver for Postgres with fn begin(self) {
   self.command("BEGIN")
 }
 
 ///|
-pub impl @sql.Driver for Postgres with fn commit(self) {
+pub impl @aya.Driver for Postgres with fn commit(self) {
   self.command("COMMIT")
 }
 
 ///|
-pub impl @sql.Driver for Postgres with fn rollback(self) {
+pub impl @aya.Driver for Postgres with fn rollback(self) {
   self.command("ROLLBACK")
 }
 
@@ -138,7 +138,7 @@ pub impl @sql.Driver for Postgres with fn rollback(self) {
 async fn Postgres::command(
   self : Postgres,
   sql : String,
-) -> Unit raise @sql.DbError {
+) -> Unit raise @aya.DbError {
   self.client.batch_execute(sql) catch {
     e => raise as_db_error(sql, e)
   }

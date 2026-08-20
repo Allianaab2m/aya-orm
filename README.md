@@ -11,11 +11,11 @@ separate things**, and the mapping between them is yours to write. The query
 pipeline follows [Acadia](https://acadia.engineering/).
 
 ```moonbit
-@sql.from(User::table())
-|> @sql.Query::filter(u => u.age.gte(18) & u.deleted_at.is_none())
-|> @sql.Query::map(u => @sql.sel(u.name))
-|> @sql.Query::order_by(u => [u.name.asc()])
-|> @sql.Query::limit(20)
+@aya.from(User::table())
+|> @aya.Query::filter(u => u.age.gte(18) & u.deleted_at.is_none())
+|> @aya.Query::map(u => @aya.sel(u.name))
+|> @aya.Query::order_by(u => [u.name.asc()])
+|> @aya.Query::limit(20)
 ```
 
 ```sql
@@ -57,10 +57,15 @@ moon add Allianaab2m/aya
 ```moonbit
 // moon.pkg
 import {
-  "Allianaab2m/aya/sql",
+  "Allianaab2m/aya",
   "Allianaab2m/aya/driver/sqlite",
 }
 ```
+
+The core library is the module's root package, so it is `@aya` without anyone
+having to alias it: `@aya.Column`, `@aya.Table`, `@aya.from`, `@aya.SqlValue`.
+Generated code is written against `@aya` too, so importing it under a different
+alias will not line up with the output.
 
 The whole dependency graph builds on the `native` target only: both SQL client
 libraries are native FFI, and so is `moonbitlang/async` beneath them.
@@ -96,9 +101,9 @@ You get `UserCols`, `User::cols()`, `User::all()`, `User::binding()`,
 ```moonbit
 async fn main {
   @sqlite.with_connection("app.db", driver => {
-    let db = @sql.Tx::new(driver)
-    let adults = (@sql.from(User::table())
-      |> @sql.Query::filter(u => u.age.gte(18))).run(db)
+    let db = @aya.Tx::new(driver)
+    let adults = (@aya.from(User::table())
+      |> @aya.Query::filter(u => u.age.gte(18))).run(db)
     println(adults.length())
   })
 }
@@ -189,7 +194,7 @@ exists only to keep comparisons honest.
 ## Package layout
 
 ```
-src/sql/            core library — expressions, projection, query, DML, emission
+src/*.mbt           core library — expressions, projection, query, DML, emission
 src/gen/            entity parsing — attributes to IR — and column-handle emission
 src/ddl/            IR to snapshot, diff, and DDL
 src/kit/            config and migration planning, all of it pure

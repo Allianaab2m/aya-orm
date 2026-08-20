@@ -53,14 +53,14 @@ pub fn[C, R] delete_all(Table[C, R]) -> Delete[C]
 するときは `update_all` / `delete_all` を呼び、名前でそう宣言します。
 
 ```moonbit
-@sql.insert(User::table(), user)
-@sql.insert_except(User::table(), user, omit=["id"])  // 自動採番キーを DB に任せる
-@sql.insert_many(User::table(), [a, b, c])            // 3 文ではなく 1 文
+@aya.insert(User::table(), user)
+@aya.insert_except(User::table(), user, omit=["id"])  // 自動採番キーを DB に任せる
+@aya.insert_many(User::table(), [a, b, c])            // 3 文ではなく 1 文
 
-@sql.update(User::table(), u => u.id.eq(7))
-|> @sql.Update::set(u => u.name, "bob")
+@aya.update(User::table(), u => u.id.eq(7))
+|> @aya.Update::set(u => u.name, "bob")
 
-@sql.delete(User::table(), u => u.age.lt(18))
+@aya.delete(User::table(), u => u.age.lt(18))
 ```
 
 ```sql
@@ -158,7 +158,7 @@ pub fn[C] Delete::to_sql(Delete[C], dialect? : Dialect) -> (String, Array[SqlVal
 平坦化します。
 
 ```moonbit
-@sql.insert(orders(), Submitted(id=2, items=1, submitted_at="2026-08-01"))
+@aya.insert(orders(), Submitted(id=2, items=1, submitted_at="2026-08-01"))
 ```
 
 ```sql

@@ -86,26 +86,26 @@ test "generated source" {
       #|///|
       #|/// Column handles for `User`.
       #|pub struct UserCols {
-      #|  id : @sql.Column[Int]
-      #|  name : @sql.Column[String]
-      #|  age : @sql.Column[Int]
-      #|  deleted_at : @sql.Column[String?]
+      #|  id : @aya.Column[Int]
+      #|  name : @aya.Column[String]
+      #|  age : @aya.Column[Int]
+      #|  deleted_at : @aya.Column[String?]
       #|}
       #|
       #|///|
       #|pub fn User::cols() -> UserCols {
       #|  {
-      #|    id: @sql.Column::new(tbl="u", name="id"),
-      #|    name: @sql.Column::new(tbl="u", name="name"),
-      #|    age: @sql.Column::new(tbl="u", name="age"),
-      #|    deleted_at: @sql.Column::new(tbl="u", name="deleted_at"),
+      #|    id: @aya.Column::new(tbl="u", name="id"),
+      #|    name: @aya.Column::new(tbl="u", name="name"),
+      #|    age: @aya.Column::new(tbl="u", name="age"),
+      #|    deleted_at: @aya.Column::new(tbl="u", name="deleted_at"),
       #|  }
       #|}
       #|
       #|///|
       #|/// Select every column of `User`, in declaration order.
-      #|pub fn User::all(cols : UserCols) -> @sql.Selection[User] {
-      #|  @sql.Selection::new(
+      #|pub fn User::all(cols : UserCols) -> @aya.Selection[User] {
+      #|  @aya.Selection::new(
       #|    [
       #|      cols.id.raw(),
       #|      cols.name.raw(),
@@ -113,42 +113,42 @@ test "generated source" {
       #|      cols.deleted_at.raw(),
       #|    ],
       #|    row => User::{
-      #|      id: @sql.SqlDecode::decode(row[0], "id"),
-      #|      name: @sql.SqlDecode::decode(row[1], "name"),
-      #|      age: @sql.SqlDecode::decode(row[2], "age"),
-      #|      deleted_at: @sql.SqlDecode::decode(row[3], "deleted_at"),
+      #|      id: @aya.SqlDecode::decode(row[0], "id"),
+      #|      name: @aya.SqlDecode::decode(row[1], "name"),
+      #|      age: @aya.SqlDecode::decode(row[2], "age"),
+      #|      deleted_at: @aya.SqlDecode::decode(row[3], "deleted_at"),
       #|    },
       #|  )
       #|}
       #|
       #|///|
       #|/// Write every column of `User`, in declaration order.
-      #|pub fn User::binding() -> @sql.Binding[User] {
-      #|  @sql.Binding::new(
+      #|pub fn User::binding() -> @aya.Binding[User] {
+      #|  @aya.Binding::new(
       #|    ["id", "name", "age", "deleted_at"],
       #|    self => [
-      #|      @sql.SqlEncode::to_sql_value(self.id),
-      #|      @sql.SqlEncode::to_sql_value(self.name),
-      #|      @sql.SqlEncode::to_sql_value(self.age),
-      #|      @sql.SqlEncode::to_sql_value(self.deleted_at),
+      #|      @aya.SqlEncode::to_sql_value(self.id),
+      #|      @aya.SqlEncode::to_sql_value(self.name),
+      #|      @aya.SqlEncode::to_sql_value(self.age),
+      #|      @aya.SqlEncode::to_sql_value(self.deleted_at),
       #|    ],
       #|  )
       #|}
       #|
       #|///|
-      #|pub fn User::table() -> @sql.Table[UserCols, User] {
+      #|pub fn User::table() -> @aya.Table[UserCols, User] {
       #|  let cols = User::cols()
-      #|  @sql.Table::new(table_name="users", tbl="u", cols~, all=User::all(cols), write=User::binding())
+      #|  @aya.Table::new(table_name="users", tbl="u", cols~, all=User::all(cols), write=User::binding())
       #|}
       #|
       #|///|
       #|/// Build a table over a domain type mapped to and from `User`.
       #|pub fn[D] User::table_of(
-      #|  to_domain : (User) -> D raise @sql.DecodeError,
+      #|  to_domain : (User) -> D raise @aya.DecodeError,
       #|  from_domain : (D) -> User,
-      #|) -> @sql.Table[UserCols, D] {
+      #|) -> @aya.Table[UserCols, D] {
       #|  let cols = User::cols()
-      #|  @sql.Table::new(
+      #|  @aya.Table::new(
       #|    table_name="users",
       #|    tbl="u",
       #|    cols~,

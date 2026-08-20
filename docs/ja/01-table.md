@@ -118,19 +118,19 @@ pub(open) trait SqlNum {}   // マーカー: SQL が算術演算をする
 ```moonbit
 pub(all) struct AccountId(Int) derive(Debug, Eq)
 
-pub impl @sql.SqlEncode for AccountId with fn to_sql_value(self) {
+pub impl @aya.SqlEncode for AccountId with fn to_sql_value(self) {
   let AccountId(n) = self
-  @sql.SqlEncode::to_sql_value(n)
+  @aya.SqlEncode::to_sql_value(n)
 }
 
-pub impl @sql.SqlDecode for AccountId with fn decode(v, k) {
-  AccountId(@sql.SqlDecode::decode(v, k))
+pub impl @aya.SqlDecode for AccountId with fn decode(v, k) {
+  AccountId(@aya.SqlDecode::decode(v, k))
 }
 ```
 
 デコードはドメイン不変条件を強制する場所でもあります。許された集合の外の値は、
 型のない文字列として素通りするのではなく
-`raise @sql.TypeMismatch(column=k, expected="Plan")` で落とせます。
+`raise @aya.TypeMismatch(column=k, expected="Plan")` で落とせます。
 
 ## 配管を生成する
 
@@ -214,13 +214,13 @@ pub(all) enum Order {
 ジェネレータが書くべきではない部分です。
 
 ```moonbit
-pub fn Order::of_row(r : OrderRow) -> Order raise @sql.DecodeError {
+pub fn Order::of_row(r : OrderRow) -> Order raise @aya.DecodeError {
   match (r.status, r.submitted_at, r.tracking) {
     ("draft", _, _) => Draft(id=r.id, items=r.items)
     ("submitted", Some(at), _) => Submitted(id=r.id, items=r.items, submitted_at=at)
     ("shipped", Some(at), Some(t)) =>
       Shipped(id=r.id, items=r.items, submitted_at=at, tracking=t)
-    _ => raise @sql.Malformed("orders id=\{r.id}: illegal stored state")
+    _ => raise @aya.Malformed("orders id=\{r.id}: illegal stored state")
   }
 }
 
@@ -231,7 +231,7 @@ pub fn Order::to_row(self : Order) -> OrderRow { ... }
 作ります。
 
 ```moonbit
-pub fn orders() -> @sql.Table[OrderCols, Order] {
+pub fn orders() -> @aya.Table[OrderCols, Order] {
   OrderRow::table_of(Order::of_row, Order::to_row)
 }
 ```
@@ -257,7 +257,7 @@ flowchart LR
 | 2 | 1 | draft | *NULL* | *NULL* |
 | 3 | 2 | shipped | 2026-08-01 | *NULL* |
 
-`@sql.from(orders()).run(db)` は、はじめの 2 行についてこうなります。
+`@aya.from(orders()).run(db)` は、はじめの 2 行についてこうなります。
 
 | | |
 |---|---|
@@ -275,7 +275,7 @@ Malformed("orders id=3: status shipped with submitted_at=true tracking=false")
 **これが継ぎ目の働きです** — 食い違いが該当行を名指ししたうえで境界に表面化するので
 あって、空文字列を詰めた `Shipped` になったりはしません。
 
-逆方向は全域です。`@sql.insert(orders(), Draft(id=4, items=2))` は 5 列すべてを
+逆方向は全域です。`@aya.insert(orders(), Draft(id=4, items=2))` は 5 列すべてを
 書き、必要な NULL 2 つは `to_row` が 1 か所で供給します。
 
 ```sql

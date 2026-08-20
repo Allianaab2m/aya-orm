@@ -1,5 +1,5 @@
 import {
-  "Allianaab2m/aya/sql",
+  "Allianaab2m/aya",
 }
 
 import {
@@ -14,7 +14,7 @@ import {
 // table is used directly, and `OrderRow` / `Order` is the seam where a row type
 // and a domain sum type are mapped through `table_of`. Everything else worth
 // showing is pinned where it is implemented — joins and `Nullable` in
-// `src/sql/join_test.mbt`, aggregation in `src/sql/reducer_test.mbt`, nested
+// `src/join_test.mbt`, aggregation in `src/reducer_test.mbt`, nested
 // transactions in `src/driver/fake` and `src/driver/sqlite`.
 
 options(

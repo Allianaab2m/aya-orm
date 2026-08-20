@@ -78,11 +78,11 @@ Everything below reads against this table.
 | 4 | dave | 25 | 2026-01-09 |
 
 ```moonbit
-@sql.from(User::table())
-|> @sql.Query::filter(u => u.age.gte(18) & u.deleted_at.is_none())
-|> @sql.Query::map(u => @sql.sel(u.name))
-|> @sql.Query::order_by(u => [u.name.asc()])
-|> @sql.Query::limit(20)
+@aya.from(User::table())
+|> @aya.Query::filter(u => u.age.gte(18) & u.deleted_at.is_none())
+|> @aya.Query::map(u => @aya.sel(u.name))
+|> @aya.Query::order_by(u => [u.name.asc()])
+|> @aya.Query::limit(20)
 ```
 
 ```sql
@@ -134,7 +134,7 @@ you are assembling something the column shorthand does not cover.
 and the emitter adds brackets where SQL needs them.
 
 ```moonbit
-|> @sql.Query::filter(u => (u.age.gte(18) | u.name.eq("root")) & u.deleted_at.is_none())
+|> @aya.Query::filter(u => (u.age.gte(18) | u.name.eq("root")) & u.deleted_at.is_none())
 ```
 
 ```sql
@@ -161,7 +161,7 @@ Beyond three columns, `zip` and `into2` / `into3` compose without an arity
 ladder:
 
 ```moonbit
-|> @sql.Query::map(u => @sql.sel2(u.id, u.name).into2((id, name) => Summary::{ id, name }))
+|> @aya.Query::map(u => @aya.sel2(u.id, u.name).into2((id, name) => Summary::{ id, name }))
 ```
 
 Without a `map`, a query projects the table's `all` and decodes to the table's

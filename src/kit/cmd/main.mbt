@@ -300,11 +300,13 @@ fn read_journal(config : @kit.Config) -> @kit.Journal raise Error {
   let path = config.journal_path()
   guard @fs.path_exists(path) else { return @kit.Journal::new(config.dialect) }
   let journal = @kit.Journal::from_json_string(@fs.read_file_to_string(path))
-  guard journal.dialect == config.dialect else {
-    raise @kit.DialectMismatch(
-      journal=@ddl.dialect_name(journal.dialect),
-      config=@ddl.dialect_name(config.dialect),
-    )
+  // Compared by name rather than by value: the names are what the mismatch has
+  // to report anyway, and it saves this package an import it has no other use
+  // for.
+  let written_for = @ddl.dialect_name(journal.dialect)
+  let asked_for = @ddl.dialect_name(config.dialect)
+  guard written_for == asked_for else {
+    raise @kit.DialectMismatch(journal=written_for, config=asked_for)
   }
   journal
 }

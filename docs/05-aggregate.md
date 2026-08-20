@@ -77,9 +77,9 @@ in scope, but what a row decodes to is now the summary.
 | 4 | dave | 25 | 2026-01-09 |
 
 ```moonbit
-@sql.from(users())
-|> @sql.Query::filter(u => u.deleted_at.is_none())
-|> @sql.Query::reduce(u => @sql.count().zip(@sql.min(u.age)).zip(@sql.max(u.age)))
+@aya.from(users())
+|> @aya.Query::filter(u => u.deleted_at.is_none())
+|> @aya.Query::reduce(u => @aya.count().zip(@aya.min(u.age)).zip(@aya.max(u.age)))
 ```
 
 ```sql
@@ -115,8 +115,8 @@ is exactly the column being grouped by, so **the result is always a legal
 aggregate query**. Rows come back as `(K, S)` pairs.
 
 ```moonbit
-@sql.from(users())
-|> @sql.Query::group_by(u => u.name, u => @sql.count().zip(@sql.avg(u.age)))
+@aya.from(users())
+|> @aya.Query::group_by(u => u.name, u => @aya.count().zip(@aya.avg(u.age)))
 ```
 
 ```sql
@@ -132,11 +132,11 @@ Counting each author's posts over the two tables from
 [chapter 4](04-join.md):
 
 ```moonbit
-@sql.from(users())
-|> @sql.Query::join(posts(), (u, p) => u.id.eq_col(p.author_id))
-|> @sql.Query::group_by(
-  @sql.split2((u, _p) => u.name),
-  @sql.split2((_u, p) => @sql.count_of(p.id)),
+@aya.from(users())
+|> @aya.Query::join(posts(), (u, p) => u.id.eq_col(p.author_id))
+|> @aya.Query::group_by(
+  @aya.split2((u, _p) => u.name),
+  @aya.split2((_u, p) => @aya.count_of(p.id)),
 )
 ```
 
@@ -160,10 +160,10 @@ column reached through the wrapper — `count_of` skips NULLs, and the padded ro
 is all NULL:
 
 ```moonbit
-|> @sql.Query::left_join(posts(), (u, p) => u.id.eq_col(p.author_id))
-|> @sql.Query::group_by(
-  @sql.split2((u, _p) => u.name),
-  @sql.split2((_u, p) => @sql.count_of(p.col(x => x.id))),
+|> @aya.Query::left_join(posts(), (u, p) => u.id.eq_col(p.author_id))
+|> @aya.Query::group_by(
+  @aya.split2((u, _p) => u.name),
+  @aya.split2((_u, p) => @aya.count_of(p.col(x => x.id))),
 )
 ```
 

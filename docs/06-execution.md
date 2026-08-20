@@ -76,7 +76,7 @@ pub async fn[E : Executor, C] Delete::run(Delete[C], E) -> Int
 Over a table typed by a domain entity, what comes back is domain values:
 
 ```moonbit
-@sql.from(orders()).run(db)
+@aya.from(orders()).run(db)
 // => [Shipped(id=1, items=3, submitted_at="2026-08-01", tracking="ZZ123"),
 //     Draft(id=2, items=1)]
 ```
@@ -101,11 +101,11 @@ pub async fn[D : Driver, A] transaction(Tx[D], async (Tx[D]) -> A) -> A
 body is an ordinary function that may `raise` part way through.
 
 ```moonbit
-let db = @sql.Tx::new(driver)
+let db = @aya.Tx::new(driver)
 
-@sql.transaction(db, conn => {
-  let removed = @sql.delete(orders(), o => o.id.eq(2)).run(conn)
-  let added = @sql.insert(orders(), Submitted(id=2, items=1, submitted_at=at)).run(conn)
+@aya.transaction(db, conn => {
+  let removed = @aya.delete(orders(), o => o.id.eq(2)).run(conn)
+  let added = @aya.insert(orders(), Submitted(id=2, items=1, submitted_at=at)).run(conn)
   (removed, added)
 })
 ```
@@ -141,7 +141,7 @@ and nothing else, so two operations that each insist on being atomic land in
 one transaction when something wraps them:
 
 ```moonbit
-@sql.transaction(db, _ => {
+@aya.transaction(db, _ => {
   tickets.save(a)   // save brackets its own work...
   users.save(b)     // ...but here both join the enclosing transaction
 })
@@ -204,14 +204,14 @@ not fitting the type the entity declared for it.
 
 ```moonbit
 @sqlite.with_connection(":memory:", db => {
-  let tickets = @sql.from(TicketRow::table()).run(db)
+  let tickets = @aya.from(TicketRow::table()).run(db)
   ...
 })
 
 @postgres.with_connection(
   @postgres.config(host="localhost", user="alliana", database="aya"),
   db => {
-    let tickets = @sql.from(TicketRow::table()).run(db)
+    let tickets = @aya.from(TicketRow::table()).run(db)
     ...
   },
 )
@@ -286,7 +286,7 @@ pub fn FakeDb::fail(FakeDb, String, after? : Int) -> Unit
 
 ```moonbit
 let db = @fake.FakeDb::new(counts=[1, 1])
-let repo = SqlTickets::new(@sql.Tx::new(db))
+let repo = SqlTickets::new(@aya.Tx::new(db))
 repo.save(Open(id=1, subject="printer on fire"))
 db.log  // ["BEGIN", "QUERY", "EXEC", "COMMIT"]
 ```

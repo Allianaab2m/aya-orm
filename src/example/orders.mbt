@@ -34,7 +34,7 @@ pub(all) enum Order {
 ///
 /// This direction can fail: the table can hold combinations the domain type
 /// rejects, and that has to surface rather than be papered over.
-pub fn Order::of_row(r : OrderRow) -> Order raise @sql.DecodeError {
+pub fn Order::of_row(r : OrderRow) -> Order raise @aya.DecodeError {
   match (r.status, r.submitted_at, r.tracking) {
     ("draft", _, _) => Draft(id=r.id, items=r.items)
     ("submitted", Some(at), _) =>
@@ -42,7 +42,7 @@ pub fn Order::of_row(r : OrderRow) -> Order raise @sql.DecodeError {
     ("shipped", Some(at), Some(t)) =>
       Shipped(id=r.id, items=r.items, submitted_at=at, tracking=t)
     _ =>
-      raise @sql.Malformed(
+      raise @aya.Malformed(
         "orders id=\{r.id}: status \{r.status} with submitted_at=\{r.submitted_at is Some(_)} tracking=\{r.tracking is Some(_)}",
       )
   }
@@ -84,6 +84,6 @@ pub fn Order::to_row(self : Order) -> OrderRow {
 /// Everything storage-shaped comes from the generated `OrderRow` metadata; the
 /// only things written by hand are the two mappings, which is where the domain
 /// knowledge actually lives.
-pub fn orders() -> @sql.Table[OrderCols, Order] {
+pub fn orders() -> @aya.Table[OrderCols, Order] {
   OrderRow::table_of(Order::of_row, Order::to_row)
 }

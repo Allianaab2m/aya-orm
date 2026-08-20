@@ -13,7 +13,7 @@ pub const SNAPSHOT_VERSION = "1"
 /// so generating a migration needs no connection.
 pub struct Snapshot {
   version : String
-  dialect : @sql.Dialect
+  dialect : @aya.Dialect
   /// Sorted by name, so that reordering entity files cannot produce a diff.
   tables : Array[TableDef]
 } derive(Debug, Eq)
@@ -77,7 +77,7 @@ pub(all) suberror DdlError {
 
 ///|
 /// An empty schema: what the first migration is diffed against.
-pub fn Snapshot::empty(dialect : @sql.Dialect) -> Snapshot {
+pub fn Snapshot::empty(dialect : @aya.Dialect) -> Snapshot {
   { version: SNAPSHOT_VERSION, dialect, tables: [] }
 }
 
@@ -107,7 +107,7 @@ pub fn TableDef::index(self : TableDef, name : String) -> IndexDef? {
 
 ///|
 /// The name a dialect goes by in config files and snapshots.
-pub fn dialect_name(d : @sql.Dialect) -> String {
+pub fn dialect_name(d : @aya.Dialect) -> String {
   match d {
     Sqlite => "sqlite"
     Postgres => "postgres"
@@ -116,7 +116,7 @@ pub fn dialect_name(d : @sql.Dialect) -> String {
 
 ///|
 /// Parse a dialect name, rejecting anything aya does not model.
-pub fn dialect_of_name(name : String) -> @sql.Dialect raise DdlError {
+pub fn dialect_of_name(name : String) -> @aya.Dialect raise DdlError {
   match name {
     "sqlite" => Sqlite
     "postgres" | "postgresql" | "pg" => Postgres

@@ -15,7 +15,7 @@ pub(all) suberror KitError {
 /// command needs the same three answers, and a repository should not depend on
 /// each developer typing them the same way.
 pub(all) struct Config {
-  dialect : @sql.Dialect
+  dialect : @aya.Dialect
   /// Files or directories to scan for `#aya.table` declarations.
   schema : Array[String]
   /// Directory holding the migrations and their snapshots.

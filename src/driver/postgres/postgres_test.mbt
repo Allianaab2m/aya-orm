@@ -10,7 +10,7 @@
 /// without it every integer would claim to be an `int8` and every `int4`
 /// column would reject it.
 test "an integer parameter fits any integer column" {
-  let n = Param::Param(@sql.VInt(7))
+  let n = Param::Param(@aya.VInt(7))
   assert_true(@client.ToSql::accepts(n, @client.Type::int2()))
   assert_true(@client.ToSql::accepts(n, @client.Type::int4()))
   assert_true(@client.ToSql::accepts(n, @client.Type::int8()))
@@ -24,7 +24,7 @@ test "an integer parameter fits any integer column" {
 test "an integer parameter is encoded at the column's width" {
   fn width(type_) raise {
     let buf = @buffer.Buffer::Buffer()
-    let is_null = @client.ToSql::to_sql(Param::Param(@sql.VInt(7)), type_, buf)
+    let is_null = @client.ToSql::to_sql(Param::Param(@aya.VInt(7)), type_, buf)
     (is_null is Yes, buf.length())
   }
 
@@ -38,7 +38,7 @@ test "an integer parameter is encoded at the column's width" {
 /// put. Nothing is written for it: the length prefix in front of the parameter
 /// is what says NULL, which is what `Yes` reports back.
 test "a null parameter fits any column and writes nothing" {
-  let null = Param::Param(@sql.VNull)
+  let null = Param::Param(@aya.VNull)
   for
     type_ in [
       @client.Type::int4(),
@@ -59,28 +59,28 @@ test "a null parameter fits any column and writes nothing" {
 test "the other scalars keep the client's own type rules" {
   assert_true(
     @client.ToSql::accepts(
-      Param::Param(@sql.VText("x")),
+      Param::Param(@aya.VText("x")),
       @client.Type::varchar(),
     ),
   )
   assert_false(
     @client.ToSql::accepts(
-      Param::Param(@sql.VText("2026-08-20")),
+      Param::Param(@aya.VText("2026-08-20")),
       @client.Type::date(),
     ),
   )
   assert_true(
-    @client.ToSql::accepts(Param::Param(@sql.VBool(true)), @client.Type::bool()),
+    @client.ToSql::accepts(Param::Param(@aya.VBool(true)), @client.Type::bool()),
   )
   assert_true(
     @client.ToSql::accepts(
-      Param::Param(@sql.VDouble(1.5)),
+      Param::Param(@aya.VDouble(1.5)),
       @client.Type::float8(),
     ),
   )
   assert_true(
     @client.ToSql::accepts(
-      Param::Param(@sql.VBytes(b"\x00")),
+      Param::Param(@aya.VBytes(b"\x00")),
       @client.Type::bytea(),
     ),
   )
@@ -91,7 +91,7 @@ test "the other scalars keep the client's own type rules" {
 /// same order — the placeholders are numbered, so order is all that connects
 /// the two.
 test "the parameter list keeps its order" {
-  let ps = params([@sql.VInt(1), @sql.VNull, @sql.VText("alice")])
+  let ps = params([@aya.VInt(1), @aya.VNull, @aya.VText("alice")])
   inspect(ps.length(), content="3")
   debug_inspect(
     ps.map(p => @client.ToSql::moonbit_type_name(p)),

@@ -11,11 +11,11 @@ A thin, type-safe SQL toolkit for MoonBit.
 [Acadia](https://acadia.engineering/) を参考にしています。
 
 ```moonbit
-@sql.from(User::table())
-|> @sql.Query::filter(u => u.age.gte(18) & u.deleted_at.is_none())
-|> @sql.Query::map(u => @sql.sel(u.name))
-|> @sql.Query::order_by(u => [u.name.asc()])
-|> @sql.Query::limit(20)
+@aya.from(User::table())
+|> @aya.Query::filter(u => u.age.gte(18) & u.deleted_at.is_none())
+|> @aya.Query::map(u => @aya.sel(u.name))
+|> @aya.Query::order_by(u => [u.name.asc()])
+|> @aya.Query::limit(20)
 ```
 
 ```sql
@@ -55,10 +55,14 @@ moon add Allianaab2m/aya
 ```moonbit
 // moon.pkg
 import {
-  "Allianaab2m/aya/sql",
+  "Allianaab2m/aya",
   "Allianaab2m/aya/driver/sqlite",
 }
 ```
+
+コアライブラリはモジュールのルートパッケージなので、別名を付けなくても `@aya` に
+なります（`@aya.Column` / `@aya.Table` / `@aya.from` / `@aya.SqlValue`）。生成
+コードも `@aya` を前提に出力されるため、利用側で別名を変えると生成物と食い違います。
 
 依存グラフ全体がビルドできるターゲットは `native` だけです。2 つの SQL
 クライアントライブラリはどちらもネイティブ FFI であり、その下にある
@@ -94,9 +98,9 @@ aya-kit codegen
 ```moonbit
 async fn main {
   @sqlite.with_connection("app.db", driver => {
-    let db = @sql.Tx::new(driver)
-    let adults = (@sql.from(User::table())
-      |> @sql.Query::filter(u => u.age.gte(18))).run(db)
+    let db = @aya.Tx::new(driver)
+    let adults = (@aya.from(User::table())
+      |> @aya.Query::filter(u => u.age.gte(18))).run(db)
     println(adults.length())
   })
 }
@@ -187,7 +191,7 @@ classDiagram
 ## パッケージ構成
 
 ```
-src/sql/            コアライブラリ — 式・射影・クエリ・DML・SQL 生成
+src/*.mbt           コアライブラリ — 式・射影・クエリ・DML・SQL 生成
 src/gen/            エンティティ解析 — 属性から IR — とカラムハンドル生成
 src/ddl/            IR からスナップショット・差分・DDL へ
 src/kit/            設定とマイグレーション計画（すべて純粋）

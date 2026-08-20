@@ -2,7 +2,7 @@
 package "Allianaab2m/aya/driver/fake"
 
 import {
-  "Allianaab2m/aya/sql",
+  "Allianaab2m/aya",
 }
 
 // Values
@@ -12,17 +12,17 @@ import {
 // Types and methods
 pub struct FakeDb {
   log : Array[String]
-  stmts : Array[(String, Array[@sql.SqlValue])]
-  mut results : Array[Array[Array[@sql.SqlValue]]]
+  stmts : Array[(String, Array[@aya.SqlValue])]
+  mut results : Array[Array[Array[@aya.SqlValue]]]
   mut counts : Array[Int]
   mut fail_in : Int?
   mut fail_message : String
-  dialect : @sql.Dialect
+  dialect : @aya.Dialect
 }
 pub fn FakeDb::fail(Self, String, after? : Int) -> Unit
-pub fn FakeDb::new(results? : Array[Array[Array[@sql.SqlValue]]], counts? : Array[Int], dialect? : @sql.Dialect) -> Self
-pub impl @sql.Driver for FakeDb
-pub impl @sql.Executor for FakeDb
+pub fn FakeDb::new(results? : Array[Array[Array[@aya.SqlValue]]], counts? : Array[Int], dialect? : @aya.Dialect) -> Self
+pub impl @aya.Driver for FakeDb
+pub impl @aya.Executor for FakeDb
 
 // Type aliases
 

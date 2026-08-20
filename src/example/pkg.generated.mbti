@@ -2,12 +2,12 @@
 package "Allianaab2m/aya/example"
 
 import {
-  "Allianaab2m/aya/sql",
+  "Allianaab2m/aya",
   "moonbitlang/core/debug",
 }
 
 // Values
-pub fn orders() -> @sql.Table[OrderCols, Order]
+pub fn orders() -> @aya.Table[OrderCols, Order]
 
 // Errors
 
@@ -17,15 +17,15 @@ pub(all) enum Order {
   Submitted(id~ : Int, items~ : Int, submitted_at~ : String)
   Shipped(id~ : Int, items~ : Int, submitted_at~ : String, tracking~ : String)
 } derive(Eq, @debug.Debug)
-pub fn Order::of_row(OrderRow) -> Self raise @sql.DecodeError
+pub fn Order::of_row(OrderRow) -> Self raise @aya.DecodeError
 pub fn Order::to_row(Self) -> OrderRow
 
 pub struct OrderCols {
-  id : @sql.Column[Int]
-  items : @sql.Column[Int]
-  status : @sql.Column[String]
-  submitted_at : @sql.Column[String?]
-  tracking : @sql.Column[String?]
+  id : @aya.Column[Int]
+  items : @aya.Column[Int]
+  status : @aya.Column[String]
+  submitted_at : @aya.Column[String?]
+  tracking : @aya.Column[String?]
 }
 
 pub(all) struct OrderRow {
@@ -35,12 +35,12 @@ pub(all) struct OrderRow {
   submitted_at : String?
   tracking : String?
 } derive(Eq, @debug.Debug)
-pub fn OrderRow::all(OrderCols) -> @sql.Selection[Self]
-pub fn OrderRow::binding() -> @sql.Binding[Self]
+pub fn OrderRow::all(OrderCols) -> @aya.Selection[Self]
+pub fn OrderRow::binding() -> @aya.Binding[Self]
 pub fn OrderRow::cols() -> OrderCols
 pub fn OrderRow::primary_key_name() -> String?
-pub fn OrderRow::table() -> @sql.Table[OrderCols, Self]
-pub fn[D] OrderRow::table_of((Self) -> D raise @sql.DecodeError, (D) -> Self) -> @sql.Table[OrderCols, D]
+pub fn OrderRow::table() -> @aya.Table[OrderCols, Self]
+pub fn[D] OrderRow::table_of((Self) -> D raise @aya.DecodeError, (D) -> Self) -> @aya.Table[OrderCols, D]
 
 pub(all) struct User {
   id : Int
@@ -48,18 +48,18 @@ pub(all) struct User {
   age : Int
   deleted_at : String?
 } derive(Eq, @debug.Debug)
-pub fn User::all(UserCols) -> @sql.Selection[Self]
-pub fn User::binding() -> @sql.Binding[Self]
+pub fn User::all(UserCols) -> @aya.Selection[Self]
+pub fn User::binding() -> @aya.Binding[Self]
 pub fn User::cols() -> UserCols
 pub fn User::primary_key_name() -> String?
-pub fn User::table() -> @sql.Table[UserCols, Self]
-pub fn[D] User::table_of((Self) -> D raise @sql.DecodeError, (D) -> Self) -> @sql.Table[UserCols, D]
+pub fn User::table() -> @aya.Table[UserCols, Self]
+pub fn[D] User::table_of((Self) -> D raise @aya.DecodeError, (D) -> Self) -> @aya.Table[UserCols, D]
 
 pub struct UserCols {
-  id : @sql.Column[Int]
-  name : @sql.Column[String]
-  age : @sql.Column[Int]
-  deleted_at : @sql.Column[String?]
+  id : @aya.Column[Int]
+  name : @aya.Column[String]
+  age : @aya.Column[Int]
+  deleted_at : @aya.Column[String?]
 }
 
 // Type aliases

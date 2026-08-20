@@ -119,7 +119,7 @@ exist so that the unfiltered case is visible at the call site by name.
 
 Everything else worth demonstrating is pinned where it is implemented rather
 than duplicated here: joins, `Nullable`, `map_cols` and `split2` in
-`src/sql/join_test.mbt`; aggregation in `src/sql/reducer_test.mbt`; nested
+`src/join_test.mbt`; aggregation in `src/reducer_test.mbt`; nested
 transactions in `src/driver/fake/fake_test.mbt` and against a real database in
 `src/driver/sqlite/sqlite_test.mbt`.
 
