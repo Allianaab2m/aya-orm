@@ -1,0 +1,18 @@
+import {
+  "Allianaab2m/cairn/sql",
+  "moonbit-community/postgres/client",
+  "moonbit-community/postgres/protocol" @proto,
+  "moonbitlang/async",
+  "moonbitlang/core/buffer",
+}
+
+import {
+  "moonbitlang/core/test",
+} for "test"
+
+// `moonbit-community/postgres` is built on `moonbitlang/async`, which supports
+// the native backend only.
+
+options(
+  backend: [ "native" ],
+)

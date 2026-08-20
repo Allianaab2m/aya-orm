@@ -1,0 +1,29 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Allianaab2m/cairn/driver/fake"
+
+import {
+  "Allianaab2m/cairn/sql",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct FakeDb {
+  log : Array[String]
+  stmts : Array[(String, Array[@sql.SqlValue])]
+  mut results : Array[Array[Array[@sql.SqlValue]]]
+  mut counts : Array[Int]
+  mut fail_in : Int?
+  mut fail_message : String
+  dialect : @sql.Dialect
+}
+pub fn FakeDb::fail(Self, String, after? : Int) -> Unit
+pub fn FakeDb::new(results? : Array[Array[Array[@sql.SqlValue]]], counts? : Array[Int], dialect? : @sql.Dialect) -> Self
+pub impl @sql.Driver for FakeDb
+pub impl @sql.Executor for FakeDb
+
+// Type aliases
+
+// Traits

@@ -1,0 +1,35 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Allianaab2m/cairn/driver/postgres"
+
+import {
+  "Allianaab2m/cairn/sql",
+  "moonbit-community/postgres/client",
+  "moonbit-community/postgres/protocol",
+  "moonbitlang/core/buffer",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn config(host~ : String, user~ : String, database? : String, password? : String, port? : Int, ssl_mode? : @client.SslMode, application_name? : String) -> @client.Config
+
+pub fn params(Array[@sql.SqlValue]) -> Array[&@client.ToSql]
+
+pub async fn[A] with_connection(@client.Config, async (Postgres) -> A) -> A
+
+// Errors
+
+// Types and methods
+pub(all) struct Param(@sql.SqlValue) derive(Eq, @debug.Debug)
+pub impl @client.ToSql for Param
+
+pub struct Postgres {
+  client : @client.Client
+}
+pub fn Postgres::client(Self) -> @client.Client
+pub fn Postgres::new(@client.Client) -> Self
+pub impl @sql.Driver for Postgres
+pub impl @sql.Executor for Postgres
+
+// Type aliases
+
+// Traits

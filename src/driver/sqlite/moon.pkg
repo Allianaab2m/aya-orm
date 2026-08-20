@@ -1,0 +1,15 @@
+import {
+  "Allianaab2m/cairn/sql",
+  "moonbit-community/sqlite3",
+}
+
+import {
+  "moonbitlang/async",
+} for "test"
+
+// `moonbit-community/sqlite3` vendors the SQLite amalgamation and binds it over
+// FFI, so it is a native package.
+
+options(
+  backend: [ "native" ],
+)

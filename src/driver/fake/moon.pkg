@@ -1,0 +1,14 @@
+import {
+  "Allianaab2m/cairn/sql",
+}
+
+import {
+  "moonbitlang/async",
+} for "test"
+
+// `async test` needs `moonbitlang/async`, which only supports the native
+// backend. The fake itself is portable; only its own test suite is not.
+
+options(
+  backend: [ "native" ],
+)

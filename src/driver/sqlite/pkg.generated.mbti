@@ -1,0 +1,26 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Allianaab2m/cairn/driver/sqlite"
+
+import {
+  "Allianaab2m/cairn/sql",
+  "moonbit-community/sqlite3",
+}
+
+// Values
+pub async fn[A] with_connection(String, async (Sqlite) -> A) -> A
+
+// Errors
+
+// Types and methods
+pub struct Sqlite {
+  conn : @sqlite3.Connection
+}
+pub fn Sqlite::close(Self) -> Unit raise @sql.DbError
+pub fn Sqlite::connection(Self) -> @sqlite3.Connection
+pub fn Sqlite::open(String) -> Self raise @sql.DbError
+pub impl @sql.Driver for Sqlite
+pub impl @sql.Executor for Sqlite
+
+// Type aliases
+
+// Traits
