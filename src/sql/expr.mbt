@@ -139,11 +139,6 @@ pub impl BitOr for Expr[Bool] with fn lor(self, other) {
 // aggregates, order
 
 ///|
-pub fn count() -> Expr[Int] {
-  Expr(Agg("COUNT", None))
-}
-
-///|
 pub(all) enum Dir {
   Asc
   Desc

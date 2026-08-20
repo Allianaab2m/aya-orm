@@ -6,6 +6,7 @@ pub struct Query[Cols, A] {
   cols : Cols
   projection : Array[RawExpr]
   wheres : Array[RawExpr]
+  group : Array[RawExpr]
   order : Array[OrderKey]
   limit_n : Int?
   decode : (Row) -> A raise DecodeError
@@ -20,6 +21,7 @@ pub fn[C, R] from(t : Table[C, R]) -> Query[C, R] {
     cols: t.cols,
     projection: Array::from_iter(t.all.exprs.iter()),
     wheres: [],
+    group: [],
     order: [],
     limit_n: None,
     decode: t.all.read,
@@ -50,9 +52,65 @@ pub fn[C, R, O] Query::map(
     cols: self.cols,
     projection: Array::from_iter(s.exprs.iter()),
     wheres: Array::from_iter(self.wheres.iter()),
+    group: Array::from_iter(self.group.iter()),
     order: Array::from_iter(self.order.iter()),
     limit_n: self.limit_n,
     decode: s.read,
+  }
+}
+
+///|
+/// Collapse the whole result into one summary row.
+///
+/// The projection becomes the aggregates and nothing else, which is why a
+/// `Reducer` rather than a `Selection` is asked for here: it cannot smuggle in
+/// a bare column that SQL would then refuse to project.
+pub fn[C, A, S] Query::reduce(
+  self : Query[C, A],
+  f : (C) -> Reducer[S],
+) -> Query[C, S] {
+  let r = f(self.cols)
+  {
+    source: self.source,
+    source_tbl: self.source_tbl,
+    joins: Array::from_iter(self.joins.iter()),
+    cols: self.cols,
+    projection: Array::from_iter(r.exprs.iter()),
+    wheres: Array::from_iter(self.wheres.iter()),
+    group: [],
+    order: Array::from_iter(self.order.iter()),
+    limit_n: self.limit_n,
+    decode: r.read,
+  }
+}
+
+///|
+/// Summarise one group per distinct key.
+///
+/// The grouping column is the only non-aggregate the projection can contain,
+/// and it is exactly the one being grouped by, so the result is always a legal
+/// aggregate query.
+pub fn[C, A, K : SqlDecode, S] Query::group_by(
+  self : Query[C, A],
+  key : (C) -> Column[K],
+  f : (C) -> Reducer[S],
+) -> Query[C, (K, S)] {
+  let k = key(self.cols)
+  let r = f(self.cols)
+  let projection : Array[RawExpr] = [k.raw()]
+  projection.push_iter(r.exprs.iter())
+  let name = k.name()
+  {
+    source: self.source,
+    source_tbl: self.source_tbl,
+    joins: Array::from_iter(self.joins.iter()),
+    cols: self.cols,
+    projection,
+    wheres: Array::from_iter(self.wheres.iter()),
+    group: [k.raw()],
+    order: Array::from_iter(self.order.iter()),
+    limit_n: self.limit_n,
+    decode: row => (SqlDecode::decode(row[0], name), (r.read)(row[1:])),
   }
 }
 
@@ -113,6 +171,11 @@ pub fn[C, A] Query::to_sql(
     buf.write_string("\n WHERE " + join(parts, "\n   AND "))
   }
 
+  if self.group.length() > 0 {
+    buf.write_string(
+      "\n GROUP BY " + join(self.group.map(g => em.expr(g)), ", "),
+    )
+  }
   if self.order.length() > 0 {
     let keys = self.order.map(k => "\{em.expr(k.expr)} \{k.dir}")
     buf.write_string("\n ORDER BY " + join(keys, ", "))

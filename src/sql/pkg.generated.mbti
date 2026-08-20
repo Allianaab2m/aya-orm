@@ -6,9 +6,11 @@ import {
 }
 
 // Values
-pub fn count() -> Expr[Int]
+pub fn[T : SqlNum] avg(Column[T]) -> Reducer[Double?]
 
-pub fn count_sel() -> Selection[Int]
+pub fn count() -> Reducer[Int]
+
+pub fn[T] count_of(Column[T]) -> Reducer[Int]
 
 pub fn[C, R] delete(Table[C, R], (C) -> Expr[Bool]) -> Delete[C]
 
@@ -24,11 +26,17 @@ pub fn[C, R] insert_many(Table[C, R], Array[R]) -> Insert
 
 pub fn join(Array[String], String) -> String
 
+pub fn[T : SqlDecode + SqlOrd] max(Column[T]) -> Reducer[T?]
+
+pub fn[T : SqlDecode + SqlOrd] min(Column[T]) -> Reducer[T?]
+
 pub fn[T : SqlDecode] sel(Column[T]) -> Selection[T]
 
 pub fn[A : SqlDecode, B : SqlDecode] sel2(Column[A], Column[B]) -> Selection[(A, B)]
 
 pub fn[A : SqlDecode, B : SqlDecode, C : SqlDecode] sel3(Column[A], Column[B], Column[C]) -> Selection[(A, B, C)]
+
+pub fn[T : SqlDecode + SqlNum] sum(Column[T]) -> Reducer[T?]
 
 pub async fn[D : Driver, A] transaction(Tx[D], async (Tx[D]) -> A) -> A
 
@@ -181,18 +189,21 @@ pub struct Query[Cols, A] {
   cols : Cols
   projection : Array[RawExpr]
   wheres : Array[RawExpr]
+  group : Array[RawExpr]
   order : Array[OrderKey]
   limit_n : Int?
   decode : (ArrayView[SqlValue]) -> A raise DecodeError
 }
 pub fn[C, A] Query::filter(Self[C, A], (C) -> Expr[Bool]) -> Self[C, A]
 pub async fn[E : Executor, C, A] Query::first(Self[C, A], E) -> A?
+pub fn[C, A, K : SqlDecode, S] Query::group_by(Self[C, A], (C) -> Column[K], (C) -> Reducer[S]) -> Self[C, (K, S)]
 pub fn[C1, C2, R2, A] Query::join(Self[C1, A], Table[C2, R2], (C1, C2) -> Expr[Bool]) -> Self[(C1, C2), A]
 pub fn[C1, C2, R2, A] Query::left_join(Self[C1, A], Table[C2, R2], (C1, C2) -> Expr[Bool]) -> Self[(C1, Nullable[C2, R2]), A]
 pub fn[C, A] Query::limit(Self[C, A], Int) -> Self[C, A]
 pub fn[C, R, O] Query::map(Self[C, R], (C) -> Selection[O]) -> Self[C, O]
 pub async fn[E : Executor, C, A] Query::one(Self[C, A], E) -> A
 pub fn[C, A] Query::order_by(Self[C, A], (C) -> Array[OrderKey]) -> Self[C, A]
+pub fn[C, A, S] Query::reduce(Self[C, A], (C) -> Reducer[S]) -> Self[C, S]
 pub async fn[E : Executor, C, A] Query::run(Self[C, A], E) -> Array[A]
 pub fn[C, A] Query::to_sql(Self[C, A], dialect? : Dialect, shape? : RowShape) -> (String, Array[SqlValue]) raise StatementError
 
@@ -204,6 +215,13 @@ pub enum RawExpr {
   InList(RawExpr, Array[SqlValue])
   Agg(String, RawExpr?)
 } derive(@debug.Debug)
+
+pub struct Reducer[Out] {
+  exprs : Array[RawExpr]
+  read : (ArrayView[SqlValue]) -> Out raise DecodeError
+}
+pub fn[A, B] Reducer::map(Self[A], (A) -> B raise DecodeError) -> Self[B]
+pub fn[A, B] Reducer::zip(Self[A], Self[B]) -> Self[(A, B)]
 
 pub(all) enum RowShape {
   Plain
@@ -284,6 +302,7 @@ pub(open) trait SqlDecode {
 }
 pub impl SqlDecode for Bool
 pub impl SqlDecode for Int
+pub impl SqlDecode for Double
 pub impl SqlDecode for String
 pub impl[T : SqlDecode] SqlDecode for T?
 
@@ -296,6 +315,12 @@ pub impl SqlEncode for Int64
 pub impl SqlEncode for Double
 pub impl SqlEncode for String
 pub impl[T : SqlEncode] SqlEncode for T?
+
+pub(open) trait SqlNum {
+}
+pub impl SqlNum for Int
+pub impl SqlNum for Int64
+pub impl SqlNum for Double
 
 pub(open) trait SqlOrd {
 }

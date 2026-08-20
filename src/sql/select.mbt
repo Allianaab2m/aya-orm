@@ -27,6 +27,17 @@ pub impl SqlDecode for String with fn decode(v, k) {
 }
 
 ///|
+/// Numbers arrive as whichever of the two numeric shapes the driver chose, so
+/// an integral column read as a `Double` is accepted rather than rejected.
+pub impl SqlDecode for Double with fn decode(v, k) {
+  match v {
+    VDouble(d) => d
+    VInt(n) => n.to_double()
+    _ => raise TypeMismatch(column=k, expected="Double")
+  }
+}
+
+///|
 pub impl SqlDecode for Bool with fn decode(v, k) {
   match v {
     VBool(b) => b
@@ -171,9 +182,4 @@ pub fn[A, B, C, R] Selection::into3(
   f : (A, B, C) -> R,
 ) -> Selection[R] {
   self.map(t => f(t.0, t.1, t.2))
-}
-
-///|
-pub fn count_sel() -> Selection[Int] {
-  { exprs: [Agg("COUNT", None)], read: _row => 0 }
 }
