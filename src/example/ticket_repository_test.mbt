@@ -1,10 +1,10 @@
 ///|
 /// Loading the aggregate is a single statement, whatever phase it is in.
-test "one query loads the whole aggregate" {
-  let repo = SqlTickets::new(StubDb::new())
+async test "one query loads the whole aggregate" {
+  let repo = SqlTickets::new(@sql.Tx::new(@fake.FakeDb::new()))
   let _ = TicketRepository::find(repo, 1)
   inspect(
-    (ticket_query() |> @sql.Query::filter(c => c.0.0.id.eq(1))).to_sql().0,
+    (ticket_query() |> @sql.Query::filter(j => j.ticket.id.eq(1))).to_sql().0,
     content=(
       #|SELECT t."id", t."subject", ta."ticket_id", ta."assignee", tc."ticket_id", tc."resolution"
       #|  FROM "tickets" AS t
@@ -73,7 +73,7 @@ test "the phases present determine the state" {
 test "unassigned is the absence of an assignment row" {
   inspect(
     (ticket_query()
-    |> @sql.Query::filter(c => c.0.1.col(a => a.ticket_id).is_none())).to_sql().0,
+    |> @sql.Query::filter(j => j.assignment.col(a => a.ticket_id).is_none())).to_sql().0,
     content=(
       #|SELECT t."id", t."subject", ta."ticket_id", ta."assignee", tc."ticket_id", tc."resolution"
       #|  FROM "tickets" AS t
@@ -86,9 +86,9 @@ test "unassigned is the absence of an assignment row" {
 
 ///|
 /// Saving a brand new ticket writes only the base row.
-test "saving an open ticket inserts one row" {
-  let db = StubDb::new(results=[[]])
-  let repo = SqlTickets::new(db)
+async test "saving an open ticket inserts one row" {
+  let db = @fake.FakeDb::new(results=[[]])
+  let repo = SqlTickets::new(@sql.Tx::new(db))
   TicketRepository::save(repo, Open(id=1, subject="printer on fire"))
   debug_inspect(
     db.log,
@@ -96,10 +96,18 @@ test "saving an open ticket inserts one row" {
       #|["BEGIN", "QUERY", "EXEC", "COMMIT"]
     ),
   )
+  // The lookup that `save` starts with is statement 0; what it decided to
+  // write is the rest.
   debug_inspect(
-    db.stmts,
+    db.stmts[1:],
     content=(
-      #|["INSERT INTO \"tickets\" (\"id\", \"subject\")"]
+      #|<ArrayView:
+      #|  [
+      #|    (
+      #|      "INSERT INTO \"tickets\" (\"id\", \"subject\") VALUES (?, ?)",
+      #|      [VInt(1), VText("printer on fire")],
+      #|    ),
+      #|  ]>
     ),
   )
 }
@@ -107,9 +115,9 @@ test "saving an open ticket inserts one row" {
 ///|
 /// Saving a ticket that has moved on inserts only the phase rows that are
 /// missing: the base row is already there, so it is left alone.
-test "saving a transition inserts only what is new" {
+async test "saving a transition inserts only what is new" {
   // The find inside `save` reports an already-open ticket.
-  let db = StubDb::new(results=[
+  let db = @fake.FakeDb::new(results=[
     [
       [
         @sql.SqlValue::VInt(1),
@@ -121,7 +129,7 @@ test "saving a transition inserts only what is new" {
       ],
     ],
   ])
-  let repo = SqlTickets::new(db)
+  let repo = SqlTickets::new(@sql.Tx::new(db))
   TicketRepository::save(
     repo,
     Assigned(id=1, subject="printer on fire", assignee="dana"),
@@ -133,19 +141,49 @@ test "saving a transition inserts only what is new" {
     ),
   )
   debug_inspect(
-    db.stmts,
+    db.stmts[1:],
     content=(
-      #|["INSERT INTO \"ticket_assignments\" (\"ticket_id\", \"assignee\")"]
+      #|<ArrayView:
+      #|  [
+      #|    (
+      #|      "INSERT INTO \"ticket_assignments\" (\"ticket_id\", \"assignee\") VALUES (?, ?)",
+      #|      [VInt(1), VText("dana")],
+      #|    ),
+      #|  ]>
+    ),
+  )
+}
+
+///|
+/// Two saves, one transaction.
+///
+/// `save` brackets its own work, so on its own it is atomic. Wrapped in
+/// another transaction it joins that one instead, and the two aggregates land
+/// or fail together — which is the whole reason the repository is handed a
+/// `Tx` rather than the driver. Note that nothing had to be rebuilt inside the
+/// transaction: `repo` is the same object throughout.
+async test "several saves join one enclosing transaction" {
+  let db = @fake.FakeDb::new(results=[[], []])
+  let tx = @sql.Tx::new(db)
+  let repo = SqlTickets::new(tx)
+  @sql.transaction(tx, _ => {
+    TicketRepository::save(repo, Open(id=1, subject="printer on fire"))
+    TicketRepository::save(repo, Open(id=2, subject="coffee machine down"))
+  })
+  debug_inspect(
+    db.log,
+    content=(
+      #|["BEGIN", "QUERY", "EXEC", "QUERY", "EXEC", "COMMIT"]
     ),
   )
 }
 
 ///|
 /// The whole save is one transaction, so a failure half way leaves nothing.
-test "a failing save rolls back" {
-  let db = StubDb::new(results=[[]])
-  db.fail_after = Some(1)
-  let repo = SqlTickets::new(db)
+async test "a failing save rolls back" {
+  let db = @fake.FakeDb::new(results=[[]])
+  db.fail("simulated failure", after=2)
+  let repo = SqlTickets::new(@sql.Tx::new(db))
   try {
     TicketRepository::save(
       repo,

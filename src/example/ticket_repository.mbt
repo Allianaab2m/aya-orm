@@ -26,17 +26,23 @@ fn assemble(
 }
 
 ///|
+/// The shape of the joined row set, with the tables named.
+///
+/// Chained joins hand back nested tuples. Collapsing that once, right after the
+/// joins, is what keeps every later step reading `j.assignment` instead of
+/// `c.0.1` — and keeps this function's own signature legible.
+pub struct TicketJoin {
+  ticket : TicketCols
+  assignment : @sql.Nullable[AssignmentCols, AssignmentRow]
+  closure : @sql.Nullable[ClosureCols, ClosureRow]
+}
+
+///|
 /// One query that loads the whole aggregate, however far along it is.
 ///
 /// Two outer joins, so both phase tables come back as `Nullable` and can only
 /// be read as optional rows.
-pub fn ticket_query() -> @sql.Query[
-  (
-    (TicketCols, @sql.Nullable[AssignmentCols, AssignmentRow]),
-    @sql.Nullable[ClosureCols, ClosureRow],
-  ),
-  Ticket,
-] {
+pub fn ticket_query() -> @sql.Query[TicketJoin, Ticket] {
   @sql.from(TicketRow::table())
   |> @sql.Query::left_join(AssignmentRow::table(), (t, a) => {
     t.id.eq_col(a.ticket_id)
@@ -44,8 +50,16 @@ pub fn ticket_query() -> @sql.Query[
   |> @sql.Query::left_join(ClosureRow::table(), (c, cl) => {
     c.0.id.eq_col(cl.ticket_id)
   })
-  |> @sql.Query::map(c => {
-    TicketRow::all(c.0.0).zip(c.0.1.row()).zip(c.1.row()).map(assemble)
+  |> @sql.Query::map_cols(c => {
+    ticket: c.0.0,
+    assignment: c.0.1,
+    closure: c.1,
+  })
+  |> @sql.Query::map(j => {
+    TicketRow::all(j.ticket)
+    .zip(j.assignment.row())
+    .zip(j.closure.row())
+    .map(assemble)
   })
 }
 
@@ -56,19 +70,25 @@ pub fn ticket_query() -> @sql.Query[
 /// their own, and in any case an aggregate-specific interface is the shape
 /// worth having — `unassigned` says something a generic `find_by` cannot.
 pub(open) trait TicketRepository {
-  fn find(Self, Int) -> Ticket? raise
-  fn save(Self, Ticket) -> Unit raise
-  fn unassigned(Self) -> Array[Ticket] raise
+  async fn find(Self, Int) -> Ticket?
+  async fn save(Self, Ticket) -> Unit
+  async fn unassigned(Self) -> Array[Ticket]
 }
 
 ///|
-/// The adapter. Generic over the driver, holding one as its connection.
+/// The adapter. Generic over the driver, holding a `Tx` over one as its
+/// connection.
+///
+/// A `Tx` rather than the driver itself so that the transaction `save` opens
+/// joins whatever transaction the caller has already opened. Every repository
+/// over the same connection has to be handed the *same* `Tx` for that to work,
+/// which is why it is a constructor argument rather than something built here.
 struct SqlTickets[D] {
-  db : D
+  db : @sql.Tx[D]
 }
 
 ///|
-pub fn[D] SqlTickets::new(db : D) -> SqlTickets[D] {
+pub fn[D] SqlTickets::new(db : @sql.Tx[D]) -> SqlTickets[D] {
   { db, }
 }
 
@@ -77,7 +97,7 @@ pub impl[D : @sql.Driver] TicketRepository for SqlTickets[D] with fn find(
   self,
   id,
 ) {
-  (ticket_query() |> @sql.Query::filter(c => c.0.0.id.eq(id))).first(self.db)
+  (ticket_query() |> @sql.Query::filter(j => j.ticket.id.eq(id))).first(self.db)
 }
 
 ///|
@@ -87,7 +107,7 @@ pub impl[D : @sql.Driver] TicketRepository for SqlTickets[D] with fn unassigned(
   // Reaching a column of an outer-joined table yields `Column[Int?]`, which is
   // exactly what "no assignment row matched" needs to be tested against.
   (ticket_query()
-  |> @sql.Query::filter(c => c.0.1.col(a => a.ticket_id).is_none())).run(
+  |> @sql.Query::filter(j => j.assignment.col(a => a.ticket_id).is_none())).run(
     self.db,
   )
 }

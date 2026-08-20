@@ -2,6 +2,18 @@ import {
   "Allianaab2m/cairn/sql",
 }
 
+import {
+  "Allianaab2m/cairn/driver/fake",
+  "moonbitlang/async",
+} for "test"
+
+// The example's tests exercise the execution layer, and that is `async`, so
+// they need `moonbitlang/async` — which supports the native backend only.
+
+options(
+  backend: [ "native" ],
+)
+
 // NOTE: no `pre-build` hook here on purpose.
 //
 // A hook that shells out to `moon run src/gen/cmd` recurses forever, because

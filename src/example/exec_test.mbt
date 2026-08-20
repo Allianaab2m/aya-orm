@@ -1,70 +1,13 @@
 ///|
-/// A driver stub for the example package, so the execution layer can be shown
-/// end to end without a real database binding.
-struct StubDb {
-  log : Array[String]
-  /// The statements themselves, first line only, so assertions stay readable.
-  stmts : Array[String]
-  mut results : Array[Array[Array[@sql.SqlValue]]]
-  /// Fail the statement this many operations in, to test rollback.
-  mut fail_after : Int?
-}
-
-///|
-fn StubDb::new(results? : Array[Array[Array[@sql.SqlValue]]] = []) -> StubDb {
-  { log: [], stmts: [], results, fail_after: None }
-}
-
-///|
-impl @sql.Driver for StubDb with fn query(self, _sql, _params) {
-  self.log.push("QUERY")
-  if self.results.is_empty() {
-    []
-  } else {
-    let head = self.results[0]
-    self.results = self.results[1:].to_owned()
-    head
-  }
-}
-
-///|
-impl @sql.Driver for StubDb with fn execute(self, _sql, _params) {
-  if self.fail_after is Some(n) {
-    if n == 0 {
-      raise @sql.QueryFailed(sql=_sql, message="simulated failure")
-    }
-    self.fail_after = Some(n - 1)
-  }
-  self.log.push("EXEC")
-  self.stmts.push(_sql.split("\n").head().unwrap().to_owned())
-  1
-}
-
-///|
-impl @sql.Driver for StubDb with fn dialect(_self) {
-  @sql.Dialect::Sqlite
-}
-
-///|
-impl @sql.Driver for StubDb with fn begin(self) {
-  self.log.push("BEGIN")
-}
-
-///|
-impl @sql.Driver for StubDb with fn commit(self) {
-  self.log.push("COMMIT")
-}
-
-///|
-impl @sql.Driver for StubDb with fn rollback(self) {
-  self.log.push("ROLLBACK")
-}
+/// The execution layer end to end, against the shared fake connection rather
+/// than a database binding. Nothing here is example-specific except the tables:
+/// `@fake.FakeDb` is the same thing a consumer of cairn would test against.
 
 ///|
 /// Running a query over a domain-typed table hands back domain values. The row
 /// type never appears.
-test "queries return domain entities" {
-  let db = StubDb::new(results=[
+async test "queries return domain entities" {
+  let db = @fake.FakeDb::new(results=[
     [
       [
         @sql.SqlValue::VInt(1),
@@ -96,9 +39,9 @@ test "queries return domain entities" {
 ///|
 /// A state transition is exactly what a transaction is for: the delete and the
 /// insert either both land or neither does.
-test "a state transition runs inside one transaction" {
-  let db = StubDb::new()
-  let moved = @sql.transaction(db, conn => {
+async test "a state transition runs inside one transaction" {
+  let db = @fake.FakeDb::new(counts=[1, 1])
+  let moved = @sql.transaction(@sql.Tx::new(db), conn => {
     let removed = @sql.delete(DraftRow::table(), d => d.id.eq(2)).run(conn)
     let added = @sql.insert(SubmittedRow::table(), {
       id: 2,
@@ -123,10 +66,10 @@ test "a state transition runs inside one transaction" {
 
 ///|
 /// A failure part way through leaves nothing behind.
-test "a failed transition rolls the whole transition back" {
-  let db = StubDb::new()
+async test "a failed transition rolls the whole transition back" {
+  let db = @fake.FakeDb::new(counts=[1])
   try {
-    let _ : Unit = @sql.transaction(db, conn => {
+    let _ : Unit = @sql.transaction(@sql.Tx::new(db), conn => {
       let _ = @sql.delete(DraftRow::table(), d => d.id.eq(2)).run(conn)
       raise @sql.Malformed("order 2 is not submittable")
     })

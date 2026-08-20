@@ -17,7 +17,7 @@ pub fn submit(DraftRow, at~ : String) -> ((String, Array[@sql.SqlValue]), (Strin
 
 pub fn submitted_as_orders() -> @sql.Query[SubmittedCols, Order]
 
-pub fn ticket_query() -> @sql.Query[((TicketCols, @sql.Nullable[AssignmentCols, AssignmentRow]), @sql.Nullable[ClosureCols, ClosureRow]), Ticket]
+pub fn ticket_query() -> @sql.Query[TicketJoin, Ticket]
 
 // Errors
 
@@ -152,7 +152,7 @@ pub fn[D] ShippedRow::table_of((Self) -> D raise @sql.DecodeError, (D) -> Self) 
 pub fn ShippedRow::to_order(Self) -> Order
 
 type SqlTickets[D]
-pub fn[D : @sql.Driver] SqlTickets::new(D) -> Self[D]
+pub fn[D] SqlTickets::new(@sql.Tx[D]) -> Self[D]
 pub impl[D : @sql.Driver] TicketRepository for SqlTickets[D]
 
 pub struct SubmittedCols {
@@ -187,6 +187,12 @@ pub fn Ticket::subject(Self) -> String
 pub struct TicketCols {
   id : @sql.Column[Int]
   subject : @sql.Column[String]
+}
+
+pub struct TicketJoin {
+  ticket : TicketCols
+  assignment : @sql.Nullable[AssignmentCols, AssignmentRow]
+  closure : @sql.Nullable[ClosureCols, ClosureRow]
 }
 
 pub(all) struct TicketRow {
@@ -224,7 +230,7 @@ pub struct UserCols {
 
 // Traits
 pub(open) trait TicketRepository {
-  fn find(Self, Int) -> Ticket? raise
-  fn save(Self, Ticket) -> Unit raise
-  fn unassigned(Self) -> Array[Ticket] raise
+  async fn find(Self, Int) -> Ticket?
+  async fn save(Self, Ticket) -> Unit
+  async fn unassigned(Self) -> Array[Ticket]
 }
