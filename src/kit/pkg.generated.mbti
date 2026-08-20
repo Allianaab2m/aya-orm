@@ -1,0 +1,78 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Allianaab2m/cairn/kit"
+
+import {
+  "Allianaab2m/cairn/ddl",
+  "Allianaab2m/cairn/sql",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub const CONFIG_FILE : String = "cairn.json"
+
+pub const JOURNAL_VERSION : String = "1"
+
+pub fn describe(Array[@ddl.Change]) -> String
+
+pub fn pad_index(Int) -> String
+
+pub fn plan(journal~ : Journal, previous~ : @ddl.Snapshot, next~ : @ddl.Snapshot, now~ : Int64, name? : String) -> Plan raise
+
+pub fn snapshot_of_sources(Array[(String, String)], dialect~ : @sql.Dialect) -> @ddl.Snapshot raise
+
+// Errors
+pub(all) suberror KitError {
+  BadConfig(reason~ : String)
+  BadJournal(reason~ : String)
+  DialectMismatch(journal~ : String, config~ : String)
+} derive(@debug.Debug)
+pub impl Show for KitError
+
+// Types and methods
+pub(all) struct Config {
+  dialect : @sql.Dialect
+  schema : Array[String]
+  out : String
+} derive(Eq, @debug.Debug)
+pub fn Config::from_json_string(String) -> Self raise KitError
+pub fn Config::journal_path(Self) -> String
+pub fn Config::meta_dir(Self) -> String
+pub fn Config::migration_path(Self, String) -> String
+pub fn Config::new() -> Self
+pub fn Config::snapshot_path(Self, Int) -> String
+pub fn Config::to_json_string(Self) -> String
+
+pub(all) struct Journal {
+  version : String
+  dialect : @sql.Dialect
+  entries : Array[JournalEntry]
+} derive(Eq, @debug.Debug)
+pub fn Journal::from_json_string(String) -> Self raise KitError
+pub fn Journal::last(Self) -> JournalEntry?
+pub fn Journal::new(@sql.Dialect) -> Self
+pub fn Journal::next_index(Self) -> Int
+pub fn Journal::to_json_string(Self) -> String
+
+pub(all) struct JournalEntry {
+  idx : Int
+  tag : String
+  when_ : Int64
+  breakpoints : Bool
+} derive(Eq, @debug.Debug)
+
+pub struct Migration {
+  idx : Int
+  tag : String
+  sql : String
+  snapshot : String
+} derive(Eq, @debug.Debug)
+
+pub struct Plan {
+  changes : Array[@ddl.Change]
+  migration : Migration?
+  journal : Journal
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits
