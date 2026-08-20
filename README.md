@@ -24,7 +24,14 @@ SELECT u."name"
  WHERE u."age" >= ? AND u."deleted_at" IS NULL
  ORDER BY u."name" ASC
  LIMIT ?
+-- parameters: [18, 20]
 ```
+
+Against a `users` table holding alice (30), bob (17), carol (42) and a
+soft-deleted dave (25), that returns `["alice", "carol"]` — an `Array[String]`,
+because the `map` narrowed the projection to one column. Every chapter below
+works the same way: a table, a pipeline, the SQL it emits, and the rows that
+come back.
 
 ## What it is
 

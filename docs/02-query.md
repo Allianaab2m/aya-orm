@@ -64,6 +64,19 @@ columns be named.
 comes back**, `map_cols` changes **how you refer to the columns**. `map_cols`
 touches no SQL at all — see [chapter 4](04-join.md), where it earns its keep.
 
+### A worked example
+
+Everything below reads against this table.
+
+**`users`**
+
+| id | name | age | deleted_at |
+|---:|------|----:|------------|
+| 1 | alice | 30 | *NULL* |
+| 2 | bob | 17 | *NULL* |
+| 3 | carol | 42 | *NULL* |
+| 4 | dave | 25 | 2026-01-09 |
+
 ```moonbit
 @sql.from(User::table())
 |> @sql.Query::filter(u => u.age.gte(18) & u.deleted_at.is_none())
@@ -78,7 +91,20 @@ SELECT u."name"
  WHERE u."age" >= ? AND u."deleted_at" IS NULL
  ORDER BY u."name" ASC
  LIMIT ?
+-- parameters: [18, 20]
 ```
+
+**Result** — `Array[String]`
+
+| name |
+|------|
+| alice |
+| carol |
+
+`bob` is dropped by `age >= 18`, `dave` by `deleted_at IS NULL`. Note what the
+`map` did to the *type*: the projection is now one column, so `A` is `String`
+and no longer the `User` the table started with. Drop the `map` and the same
+filter yields `Array[User]` with every column.
 
 ## The expression language
 
@@ -113,7 +139,12 @@ and the emitter adds brackets where SQL needs them.
 
 ```sql
  WHERE (u."age" >= ? OR u."name" = ?) AND u."deleted_at" IS NULL
+-- parameters: [18, "root"]
 ```
+
+Against the table above that keeps alice, bob and carol — `root` matches
+nobody, but `OR` widens the age test to let bob through, and `dave` is still
+excluded by the soft-delete check.
 
 Nullable columns stay orderable and comparable — SQL happily sorts a column
 holding NULLs, and refusing `T?` would reject `ORDER BY submitted_at DESC`.

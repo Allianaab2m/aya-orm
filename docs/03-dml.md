@@ -76,6 +76,37 @@ DELETE FROM "users" AS u
   WHERE u."age" < ?
 ```
 
+### What the writes do
+
+Starting from:
+
+| id | name | age | deleted_at |
+|---:|------|----:|------------|
+| 1 | alice | 30 | *NULL* |
+| 2 | bob | 17 | *NULL* |
+| 3 | carol | 42 | *NULL* |
+
+`update(users(), u => u.id.eq(2)) |> set(u => u.name, "robert")` —
+parameters `["robert", 2]`, and `run` returns `1`:
+
+| id | name | age | deleted_at |
+|---:|------|----:|------------|
+| 1 | alice | 30 | *NULL* |
+| 2 | **robert** | 17 | *NULL* |
+| 3 | carol | 42 | *NULL* |
+
+`delete(users(), u => u.age.lt(18))` — parameters `[18]`, and `run`
+returns `1`:
+
+| id | name | age | deleted_at |
+|---:|------|----:|------------|
+| 1 | alice | 30 | *NULL* |
+| 3 | carol | 42 | *NULL* |
+
+Note the parameter order in the UPDATE: `"robert"` comes before `2` even though
+the predicate was supplied first, because SET precedes WHERE in the text and
+the parameter list always follows the text.
+
 `insert_many` emits one statement rather than N, which keeps the parameters in
 a single ordered list — what a driver needs to bind them.
 

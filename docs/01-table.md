@@ -246,6 +246,44 @@ From there both queries and DML speak `Order`; `OrderRow` never crosses the
 boundary. Filters are still written against the *row's* columns, because that
 is what the database has — only what comes back is governed by the domain type.
 
+### What the seam does, row by row
+
+**`orders`**
+
+| id | items | status | submitted_at | tracking |
+|---:|------:|--------|--------------|----------|
+| 1 | 3 | shipped | 2026-08-01 | ZZ123 |
+| 2 | 1 | draft | *NULL* | *NULL* |
+| 3 | 2 | shipped | 2026-08-01 | *NULL* |
+
+`@sql.from(orders()).run(db)` gives, for the first two rows:
+
+| | |
+|---|---|
+| row 1 | `Shipped(id=1, items=3, submitted_at="2026-08-01", tracking="ZZ123")` |
+| row 2 | `Draft(id=2, items=1)` |
+
+Row 3 is the interesting one. The table happily stores a shipped order with no
+tracking number; `Order` has no state for it; so `of_row` falls through to its
+last arm and raises:
+
+```
+Malformed("orders id=3: status shipped with submitted_at=true tracking=false")
+```
+
+**That is the seam earning its keep** — the mismatch surfaces at the boundary,
+naming the offending row, rather than becoming a `Shipped` with an empty string
+in it.
+
+Going the other way is total. `@sql.insert(orders(), Draft(id=4, items=2))`
+writes all five columns, with `to_row` supplying the two NULLs in one place:
+
+```sql
+INSERT INTO "orders" ("id", "items", "status", "submitted_at", "tracking")
+ VALUES (?, ?, ?, ?, ?)
+-- parameters: [4, 2, "draft", NULL, NULL]
+```
+
 When the row type and the domain type do agree, skip all of this and use the
 generated `User::table()` directly.
 

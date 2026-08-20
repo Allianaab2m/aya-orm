@@ -244,6 +244,43 @@ flowchart LR
 ありません。絞り込みは依然として**行の列**に対して書きます。データベースが
 持っているのはそれだからです。返ってくる型を決めるのがドメイン型のほうです。
 
+### 継ぎ目が行ごとに何をするか
+
+**`orders`**
+
+| id | items | status | submitted_at | tracking |
+|---:|------:|--------|--------------|----------|
+| 1 | 3 | shipped | 2026-08-01 | ZZ123 |
+| 2 | 1 | draft | *NULL* | *NULL* |
+| 3 | 2 | shipped | 2026-08-01 | *NULL* |
+
+`@sql.from(orders()).run(db)` は、はじめの 2 行についてこうなります。
+
+| | |
+|---|---|
+| 1 行目 | `Shipped(id=1, items=3, submitted_at="2026-08-01", tracking="ZZ123")` |
+| 2 行目 | `Draft(id=2, items=1)` |
+
+面白いのは 3 行目です。テーブルは追跡番号のない出荷済み注文を平然と保存できますが、
+`Order` にはそれに対応する状態がありません。したがって `of_row` は最後の腕まで
+落ち、次を送出します。
+
+```
+Malformed("orders id=3: status shipped with submitted_at=true tracking=false")
+```
+
+**これが継ぎ目の働きです** — 食い違いが該当行を名指ししたうえで境界に表面化するので
+あって、空文字列を詰めた `Shipped` になったりはしません。
+
+逆方向は全域です。`@sql.insert(orders(), Draft(id=4, items=2))` は 5 列すべてを
+書き、必要な NULL 2 つは `to_row` が 1 か所で供給します。
+
+```sql
+INSERT INTO "orders" ("id", "items", "status", "submitted_at", "tracking")
+ VALUES (?, ?, ?, ?, ?)
+-- パラメータ: [4, 2, "draft", NULL, NULL]
+```
+
 行型とドメイン型が一致するなら、以上はすべて飛ばして生成された `User::table()` を
 そのまま使ってください。
 

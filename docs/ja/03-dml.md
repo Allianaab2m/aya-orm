@@ -75,6 +75,37 @@ DELETE FROM "users" AS u
   WHERE u."age" < ?
 ```
 
+### 書き込みが何をするか
+
+この状態から始めます。
+
+| id | name | age | deleted_at |
+|---:|------|----:|------------|
+| 1 | alice | 30 | *NULL* |
+| 2 | bob | 17 | *NULL* |
+| 3 | carol | 42 | *NULL* |
+
+`update(users(), u => u.id.eq(2)) |> set(u => u.name, "robert")` —
+パラメータは `["robert", 2]`、`run` は `1` を返します。
+
+| id | name | age | deleted_at |
+|---:|------|----:|------------|
+| 1 | alice | 30 | *NULL* |
+| 2 | **robert** | 17 | *NULL* |
+| 3 | carol | 42 | *NULL* |
+
+`delete(users(), u => u.age.lt(18))` — パラメータは `[18]`、`run` は `1` を
+返します。
+
+| id | name | age | deleted_at |
+|---:|------|----:|------------|
+| 1 | alice | 30 | *NULL* |
+| 3 | carol | 42 | *NULL* |
+
+UPDATE のパラメータ順に注目してください。述語を先に渡したにもかかわらず `"robert"`
+が `2` より前に来ます。文中では SET が WHERE より先にあり、パラメータ列はつねに
+テキストに従うからです。
+
 `insert_many` は N 文ではなく 1 文を吐きます。そうするとパラメータが 1 本の
 順序付き列にまとまり、それがドライバのバインドに必要な形になります。
 

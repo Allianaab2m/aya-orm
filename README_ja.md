@@ -24,7 +24,13 @@ SELECT u."name"
  WHERE u."age" >= ? AND u."deleted_at" IS NULL
  ORDER BY u."name" ASC
  LIMIT ?
+-- パラメータ: [18, 20]
 ```
+
+alice (30)・bob (17)・carol (42)・論理削除済みの dave (25) を持つ `users`
+テーブルに対しては `["alice", "carol"]` が返ります。`map` が射影を 1 列に
+絞ったので `Array[String]` です。以降の各章も同じ形で進みます — テーブル、
+パイプライン、生成される SQL、そして返ってくる行。
 
 ## 何であって、何でないか
 

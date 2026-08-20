@@ -67,6 +67,15 @@ The projection becomes the aggregates and nothing else, so the result is one
 row. Note `A` becomes `S` while `C` is untouched: the column handles are still
 in scope, but what a row decodes to is now the summary.
 
+**`users`**
+
+| id | name | age | deleted_at |
+|---:|------|----:|------------|
+| 1 | alice | 30 | *NULL* |
+| 2 | bob | 17 | *NULL* |
+| 3 | carol | 42 | *NULL* |
+| 4 | dave | 25 | 2026-01-09 |
+
 ```moonbit
 @sql.from(users())
 |> @sql.Query::filter(u => u.deleted_at.is_none())
@@ -78,6 +87,16 @@ SELECT COUNT(*), MIN(u."age"), MAX(u."age")
   FROM "users" AS u
  WHERE u."deleted_at" IS NULL
 ```
+
+**Result** — one row, `((Int, Int?), Int?)`
+
+| COUNT(*) | MIN(age) | MAX(age) |
+|---------:|---------:|---------:|
+| 3 | 17 | 42 |
+
+which decodes to `((3, Some(17)), Some(42))` — the nesting comes from chaining
+`zip`, and `map` is how you flatten it into something of your own. `dave` is
+excluded by the filter, so the count is 3 rather than 4.
 
 Run it with `one`: there is always exactly one row.
 
@@ -107,6 +126,52 @@ SELECT u."name", COUNT(*), AVG(u."age")
 ```
 
 Run it with `run`: one row per distinct key.
+
+Grouping is more interesting across a join, where the key genuinely repeats.
+Counting each author's posts over the two tables from
+[chapter 4](04-join.md):
+
+```moonbit
+@sql.from(users())
+|> @sql.Query::join(posts(), (u, p) => u.id.eq_col(p.author_id))
+|> @sql.Query::group_by(
+  @sql.split2((u, _p) => u.name),
+  @sql.split2((_u, p) => @sql.count_of(p.id)),
+)
+```
+
+```sql
+SELECT u."name", COUNT(p."id")
+  FROM "users" AS u
+  JOIN "posts" AS p ON u."id" = p."author_id"
+ GROUP BY u."name"
+```
+
+**Result** — `Array[(String, Int)]`
+
+| name | COUNT(p."id") |
+|------|--------------:|
+| alice | 2 |
+| carol | 1 |
+
+`bob` is absent, not zero: an inner join never produced a row for him, so there
+is no group to count. To get him back with a `0`, outer-join instead and count a
+column reached through the wrapper — `count_of` skips NULLs, and the padded row
+is all NULL:
+
+```moonbit
+|> @sql.Query::left_join(posts(), (u, p) => u.id.eq_col(p.author_id))
+|> @sql.Query::group_by(
+  @sql.split2((u, _p) => u.name),
+  @sql.split2((_u, p) => @sql.count_of(p.col(x => x.id))),
+)
+```
+
+| name | COUNT(p."id") |
+|------|--------------:|
+| alice | 2 |
+| bob | 0 |
+| carol | 1 |
 
 Filters, limits and joins compose with grouping in the usual way — `filter`
 lands in WHERE, before the grouping, and `limit` caps how many groups come

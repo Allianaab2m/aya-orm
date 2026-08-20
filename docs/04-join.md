@@ -20,6 +20,28 @@ pub fn[C1, C2, R2, A] Query::left_join(
 Note what does **not** change: `A`. A join adds a table to the FROM clause and
 nothing more; what a row decodes to is still whatever the projection says.
 
+### A worked example
+
+Both examples in this chapter read against these two tables.
+
+**`users`**
+
+| id | name | age | deleted_at |
+|---:|------|----:|------------|
+| 1 | alice | 30 | *NULL* |
+| 2 | bob | 17 | *NULL* |
+| 3 | carol | 42 | *NULL* |
+
+**`posts`**
+
+| id | author_id | title |
+|---:|----------:|-------|
+| 10 | 1 | hello |
+| 11 | 1 | draft |
+| 12 | 3 | notes |
+
+`bob` has written nothing. That is the row the two join kinds disagree about.
+
 ```moonbit
 @sql.from(User::table())
 |> @sql.Query::join(Post::table(), (u, p) => u.id.eq_col(p.author_id))
@@ -34,7 +56,19 @@ SELECT u."name", p."title"
   JOIN "posts" AS p ON u."id" = p."author_id"
  WHERE u."age" >= ? AND p."title" <> ?
  ORDER BY p."id" DESC
+-- parameters: [18, "draft"]
 ```
+
+**Result** — `Array[(String, String)]`
+
+| name | title |
+|------|-------|
+| carol | notes |
+| alice | hello |
+
+Three rows come out of the join — alice/hello, alice/draft, carol/notes — and
+the filter drops alice/draft. `bob` never appears at all: an inner join has
+nothing to pair him with. `ORDER BY p."id" DESC` is why carol precedes alice.
 
 ## Taking the tuple apart
 
@@ -123,10 +157,27 @@ table declared.
 |> @sql.Query::map(c => @sql.sel(c.0.name).zip(c.1.row()))
 ```
 
+```sql
+SELECT u."name", p."id", p."title"
+  FROM "users" AS u
+  LEFT JOIN "posts" AS p ON u."id" = p."author_id"
 ```
-matched   -> ("alice", Some({ id: 7, title: "hello" }))
-unmatched -> ("bob", None)
-```
+
+`row()` expands to the joined table's whole projection, which is why the SELECT
+list has three columns for a two-part result.
+
+**Result** — `Array[(String, Post?)]`
+
+| name | `Post?` |
+|------|---------|
+| alice | `Some({ id: 10, title: "hello" })` |
+| alice | `Some({ id: 11, title: "draft" })` |
+| bob | `None` |
+| carol | `Some({ id: 12, title: "notes" })` |
+
+`bob` is the whole point. An inner join loses him; the outer join keeps him
+with `None` on the right, and the type says so — you cannot reach a `Post`
+there without handling the `None`.
 
 The `on` condition sees the joined table's *raw* columns, not the wrapper: a
 join condition is evaluated before the outer-join padding, so nullability does

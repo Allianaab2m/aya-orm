@@ -62,6 +62,19 @@ pub fn[C, D, A]    Query::map_cols(Query[C, A], (C) -> D)               -> Query
 変え、`map_cols` は**列をどう参照するか**を変えます。`map_cols` は SQL に一切
 触れません — その真価は [4 章](04-join.md)で発揮されます。
 
+### 例で追う
+
+以下はすべてこのテーブルに対するものです。
+
+**`users`**
+
+| id | name | age | deleted_at |
+|---:|------|----:|------------|
+| 1 | alice | 30 | *NULL* |
+| 2 | bob | 17 | *NULL* |
+| 3 | carol | 42 | *NULL* |
+| 4 | dave | 25 | 2026-01-09 |
+
 ```moonbit
 @sql.from(User::table())
 |> @sql.Query::filter(u => u.age.gte(18) & u.deleted_at.is_none())
@@ -76,7 +89,20 @@ SELECT u."name"
  WHERE u."age" >= ? AND u."deleted_at" IS NULL
  ORDER BY u."name" ASC
  LIMIT ?
+-- パラメータ: [18, 20]
 ```
+
+**結果** — `Array[String]`
+
+| name |
+|------|
+| alice |
+| carol |
+
+`bob` は `age >= 18` で、`dave` は `deleted_at IS NULL` で落ちます。`map` が
+**型に**何をしたかに注目してください。射影が 1 列になったので `A` は `String` に
+なり、テーブルが最初に持っていた `User` ではなくなっています。`map` を外せば同じ
+絞り込みで全列を持つ `Array[User]` が返ります。
 
 ## 式の言語
 
@@ -111,7 +137,11 @@ pub struct Expr[T](RawExpr)
 
 ```sql
  WHERE (u."age" >= ? OR u."name" = ?) AND u."deleted_at" IS NULL
+-- パラメータ: [18, "root"]
 ```
+
+上のテーブルに対しては alice・bob・carol が残ります。`root` は誰にも一致しませんが、
+`OR` が年齢の条件を広げるので bob が通り、`dave` は論理削除の条件で落ちたままです。
 
 NULL 許容の列も比較・整列できます。SQL は NULL を含む列でも問題なく並べ替えますし、
 `T?` を拒めば `ORDER BY submitted_at DESC` のようなふつうのクエリが書けなくなります。

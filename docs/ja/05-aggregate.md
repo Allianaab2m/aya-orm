@@ -64,6 +64,15 @@ pub fn[C, A, S] Query::reduce(Query[C, A], (C) -> Reducer[S]) -> Query[C, S]
 あることに注目してください。カラムハンドルは依然スコープにありますが、1 行が
 デコードされる先は要約になりました。
 
+**`users`**
+
+| id | name | age | deleted_at |
+|---:|------|----:|------------|
+| 1 | alice | 30 | *NULL* |
+| 2 | bob | 17 | *NULL* |
+| 3 | carol | 42 | *NULL* |
+| 4 | dave | 25 | 2026-01-09 |
+
 ```moonbit
 @sql.from(users())
 |> @sql.Query::filter(u => u.deleted_at.is_none())
@@ -75,6 +84,16 @@ SELECT COUNT(*), MIN(u."age"), MAX(u."age")
   FROM "users" AS u
  WHERE u."deleted_at" IS NULL
 ```
+
+**結果** — 1 行、`((Int, Int?), Int?)`
+
+| COUNT(*) | MIN(age) | MAX(age) |
+|---------:|---------:|---------:|
+| 3 | 17 | 42 |
+
+デコードすると `((3, Some(17)), Some(42))` になります。入れ子は `zip` を連ねた
+結果で、自分の型に平坦化したければ `map` を使います。`dave` は絞り込みで除かれる
+ので、件数は 4 ではなく 3 です。
 
 実行は `one` で。行はつねにちょうど 1 つです。
 
@@ -104,6 +123,51 @@ SELECT u."name", COUNT(*), AVG(u."age")
 ```
 
 実行は `run` で。異なるキーごとに 1 行返ります。
+
+グループ化が面白くなるのは結合をまたぐとき、つまりキーが実際に重複するときです。
+[4 章](04-join.md)の 2 テーブルに対して、著者ごとの投稿数を数えてみます。
+
+```moonbit
+@sql.from(users())
+|> @sql.Query::join(posts(), (u, p) => u.id.eq_col(p.author_id))
+|> @sql.Query::group_by(
+  @sql.split2((u, _p) => u.name),
+  @sql.split2((_u, p) => @sql.count_of(p.id)),
+)
+```
+
+```sql
+SELECT u."name", COUNT(p."id")
+  FROM "users" AS u
+  JOIN "posts" AS p ON u."id" = p."author_id"
+ GROUP BY u."name"
+```
+
+**結果** — `Array[(String, Int)]`
+
+| name | COUNT(p."id") |
+|------|--------------:|
+| alice | 2 |
+| carol | 1 |
+
+`bob` は 0 ではなく**不在**です。内部結合が彼の行を 1 つも作らなかったので、
+数えるべきグループがありません。`0` として取り戻すには、外部結合にしたうえで
+ラッパ越しに到達した列を数えます。`count_of` は NULL を数えず、埋められた行は
+全列 NULL だからです。
+
+```moonbit
+|> @sql.Query::left_join(posts(), (u, p) => u.id.eq_col(p.author_id))
+|> @sql.Query::group_by(
+  @sql.split2((u, _p) => u.name),
+  @sql.split2((_u, p) => @sql.count_of(p.col(x => x.id))),
+)
+```
+
+| name | COUNT(p."id") |
+|------|--------------:|
+| alice | 2 |
+| bob | 0 |
+| carol | 1 |
 
 絞り込み・上限・結合はいつもどおりグループ化と合成できます。`filter` は
 グループ化の前段の WHERE に落ち、`limit` は返るグループ数を制限します。

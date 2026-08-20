@@ -20,6 +20,28 @@ pub fn[C1, C2, R2, A] Query::left_join(
 **変わらないもの**に注目してください。`A` です。結合は FROM 句にテーブルを足すだけで、
 1 行が何にデコードされるかは相変わらず射影が決めます。
 
+### 例で追う
+
+この章の 2 つの例はどちらもこの 2 テーブルに対するものです。
+
+**`users`**
+
+| id | name | age | deleted_at |
+|---:|------|----:|------------|
+| 1 | alice | 30 | *NULL* |
+| 2 | bob | 17 | *NULL* |
+| 3 | carol | 42 | *NULL* |
+
+**`posts`**
+
+| id | author_id | title |
+|---:|----------:|-------|
+| 10 | 1 | hello |
+| 11 | 1 | draft |
+| 12 | 3 | notes |
+
+`bob` は何も書いていません。2 種類の結合で扱いが分かれるのがこの行です。
+
 ```moonbit
 @sql.from(User::table())
 |> @sql.Query::join(Post::table(), (u, p) => u.id.eq_col(p.author_id))
@@ -34,7 +56,20 @@ SELECT u."name", p."title"
   JOIN "posts" AS p ON u."id" = p."author_id"
  WHERE u."age" >= ? AND p."title" <> ?
  ORDER BY p."id" DESC
+-- パラメータ: [18, "draft"]
 ```
+
+**結果** — `Array[(String, String)]`
+
+| name | title |
+|------|-------|
+| carol | notes |
+| alice | hello |
+
+結合からは 3 行 — alice/hello、alice/draft、carol/notes — が出て、絞り込みが
+alice/draft を落とします。`bob` はそもそも現れません。内部結合には彼と組ませる
+相手がいないからです。carol が alice より先に来るのは `ORDER BY p."id" DESC` の
+ためです。
 
 ## タプルを分解する
 
@@ -118,10 +153,27 @@ c.1.row()               // Selection[Post?]  -- 行全体がほしいとき
 |> @sql.Query::map(c => @sql.sel(c.0.name).zip(c.1.row()))
 ```
 
+```sql
+SELECT u."name", p."id", p."title"
+  FROM "users" AS u
+  LEFT JOIN "posts" AS p ON u."id" = p."author_id"
 ```
-一致した   -> ("alice", Some({ id: 7, title: "hello" }))
-一致しない -> ("bob", None)
-```
+
+`row()` は結合先テーブルの射影全体に展開されます。2 要素の結果に対して SELECT
+リストが 3 列あるのはそのためです。
+
+**結果** — `Array[(String, Post?)]`
+
+| name | `Post?` |
+|------|---------|
+| alice | `Some({ id: 10, title: "hello" })` |
+| alice | `Some({ id: 11, title: "draft" })` |
+| bob | `None` |
+| carol | `Some({ id: 12, title: "notes" })` |
+
+`bob` こそが要点です。内部結合は彼を失いますが、外部結合は右辺を `None` にして
+彼を残します。そして型がそう言っています — `None` を処理せずにそこの `Post` に
+到達することはできません。
 
 `on` の条件が見るのはラッパではなく結合先テーブルの**生の列**です。結合条件は
 外部結合のパディングより前に評価されるので、NULL 許容性は適用されません。
