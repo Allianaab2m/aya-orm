@@ -1,0 +1,75 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+# Nothing is granted by default; each job asks for what it needs.
+permissions: {}
+
+jobs:
+  # Accumulates conventional commits into a release PR. Merging that PR is what
+  # cuts the version: release-please tags it, writes the GitHub release, and
+  # sets `release_created`, which is the only thing that unlocks publishing.
+  release-please:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - id: release
+        uses: googleapis/release-please-action@v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+          # A PR opened by the default `GITHUB_TOKEN` does not trigger further
+          # workflows, so CI never reports on the release PR — and `main`
+          # requires the `test` check to merge. A PAT is what breaks that
+          # deadlock; until one is set the release PR sits on "Waiting for
+          # status to be reported" and has to be nudged by pushing an empty
+          # commit to its branch by hand.
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
+
+  publish:
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      # The tag, not `main`: whatever else landed while the release PR was open
+      # is not part of this version.
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.release-please.outputs.tag_name }}
+
+      - name: Set up MoonBit
+        run: |
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
+
+      - name: Update the registry index
+        run: moon update
+
+      - name: Check
+        run: moon check --deny-warn
+
+      - name: Test
+        run: moon test
+
+      # `moon publish` reads its token from this file only; there is no env var
+      # for it. Written after the toolchain install, which owns `~/.moon`.
+      - name: Write mooncakes credentials
+        env:
+          MOONCAKES_TOKEN: ${{ secrets.MOONCAKES_TOKEN }}
+        run: |
+          umask 077
+          jq -n --arg token "$MOONCAKES_TOKEN" --arg username Allianaab2m \
+            '{token: $token, username: $username}' > "$HOME/.moon/credentials.json"
+
+      - name: Publish to mooncakes.io
+        run: moon publish
