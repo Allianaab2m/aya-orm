@@ -1,0 +1,7 @@
+{
+  "dialect": "sqlite",
+  "schema": [
+    "src/example"
+  ],
+  "out": "migrations"
+}

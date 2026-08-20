@@ -1,0 +1,108 @@
+{
+  "version": "1",
+  "dialect": "sqlite",
+  "tables": [
+    {
+      "name": "orders",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "not_null": true,
+          "primary_key": true,
+          "autoincrement": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "items",
+          "type": "INTEGER",
+          "not_null": true,
+          "primary_key": false,
+          "autoincrement": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "status",
+          "type": "TEXT",
+          "not_null": true,
+          "primary_key": false,
+          "autoincrement": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "submitted_at",
+          "type": "TEXT",
+          "not_null": false,
+          "primary_key": false,
+          "autoincrement": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "tracking",
+          "type": "TEXT",
+          "not_null": false,
+          "primary_key": false,
+          "autoincrement": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "users",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "not_null": true,
+          "primary_key": true,
+          "autoincrement": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "name",
+          "type": "TEXT",
+          "not_null": true,
+          "primary_key": false,
+          "autoincrement": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "age",
+          "type": "INTEGER",
+          "not_null": true,
+          "primary_key": false,
+          "autoincrement": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "deleted_at",
+          "type": "TEXT",
+          "not_null": false,
+          "primary_key": false,
+          "autoincrement": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        }
+      ],
+      "indexes": []
+    }
+  ]
+}
