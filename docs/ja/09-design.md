@@ -21,6 +21,7 @@ flowchart LR
     S9 --> S10["⑩ 実ドライバ"]
     S10 --> S11["⑪ 型付き行"]
     S11 --> S12["⑫ 入れ子トランザクション"]
+    S12 --> S13["⑬ バインディングが追いついた"]
 
     S0 -.- D0["Table がデコーダを保持<br/>row.get(name)"]
     S1 -.- D1["Selection 導入<br/>射影とデコーダを 1 つに"]
@@ -35,9 +36,10 @@ flowchart LR
     S10 -.- D10["Driver が async 化<br/>ドライバを src/driver へ"]
     S11 -.- D11["RowShape::Typed<br/>列ごとに typeof(e), e"]
     S12 -.- D12["Driver を Executor + Driver に分割<br/>Tx が入れ子を数える"]
+    S13 -.- D13["RowShape を撤去<br/>@sqlite3.Value がクラスを運ぶ"]
 
     classDef note fill:#f6f8fa,stroke:#d0d7de,color:#24292f
-    class D0,D1,D2,D3,D4,D5,D6,D7,D8,D9,D10,D11,D12 note
+    class D0,D1,D2,D3,D4,D5,D6,D7,D8,D9,D10,D11,D12,D13 note
 ```
 
 | 段階 | 変更 | 理由 |
@@ -53,8 +55,9 @@ flowchart LR
 | ⑧ | `split2` と `Query::map_cols` 追加 | MoonBit にないラムダ引数の分解を肩代わりする |
 | ⑨ | `Reducer[Out]` と `Query::reduce` / `group_by` | 不正な集約クエリを書けなくする |
 | ⑩ | `Driver` と `run` / `one` / `first` / `transaction` が `async` 化、ドライバを `src/driver` へ | MoonBit の PostgreSQL クライアントが非同期で、同期トレイトでは保持できない |
-| ⑪ | `Driver` に `RowShape`、`query` に `columns~` | SQLite バインディングは結果列の型も NULL 性も報告せず、当て推量は黙った誤答になる |
+| ⑪ | `Driver` に `RowShape`、`query` に `columns~` | 当時の SQLite バインディングは結果列の型も NULL 性も報告せず、当て推量は黙った誤答になる — ⑬ を参照 |
 | ⑫ | `Driver` を `Executor` + `Driver : Executor` に分割、`Tx[D]` 追加、`transaction` が `Tx` を取る | それぞれ自分の仕事を括る 2 つの Repository が `BEGIN` を 2 回送ってはならず、トランザクション本体にコミットする権限はない |
+| ⑬ | `RowShape` を撤去、`Executor::row_shape` と `to_sql(shape~)` も同時に削除 | `moonbit-community/sqlite3@0.2.0` が `Value` を追加し、SQLite のストレージクラスを直接バインド・読み出しできるようになったので、⑪ の回避策は回避すべき対象を失った |
 
 ## 繰り返し現れる 3 つの手
 
@@ -89,7 +92,7 @@ API のほとんどはこのどれかに従っています。
 | トランザクション本体が失敗 | ROLLBACK し、同じエラーを再送出 |
 | 入れ子のトランザクションが失敗し、外側が続行 | ROLLBACK し、元の原因を持つ `RollbackOnly` |
 | 列が保持していない型として読まれた | `TypeMismatch` を送出 |
-| ドライバなら `0` を返してしまう NULL | `RowShape::Typed` がデータベースに型を聞く |
+| ドライバなら `0` を返してしまう NULL | SQLite ドライバは全列を `@sqlite3.Value` として読み、ストレージクラスごと受け取る |
 
 ## 未実装
 

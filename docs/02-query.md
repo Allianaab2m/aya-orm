@@ -174,7 +174,6 @@ and the row type never appears.
 pub fn[C, A] Query::to_sql(
   Query[C, A],
   dialect? : Dialect,   // Sqlite (default) | Postgres
-  shape? : RowShape,    // Plain (default) | Typed
 ) -> (String, Array[SqlValue]) raise StatementError
 ```
 
@@ -182,9 +181,9 @@ The parameter list is always in **textual order**, so placeholder *n* in the
 text is parameter *n* in the list — which is what makes `$1`-style numbering
 and `?`-style positional binding interchangeable.
 
-`run` / `one` / `first` call `to_sql` for you with the dialect and row shape
-the executor asked for. Call it directly to log a statement, or to test one
-without a database.
+`run` / `one` / `first` call `to_sql` for you with the dialect the executor
+asked for. Call it directly to log a statement, or to test one without a
+database.
 
 Two things can go wrong at this stage, both `StatementError`:
 

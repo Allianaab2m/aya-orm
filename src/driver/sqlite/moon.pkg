@@ -1,15 +1,15 @@
 import {
   "Allianaab2m/aya",
   "moonbit-community/sqlite3",
+  "moonbitlang/core/debug",
 }
 
 import {
   "moonbitlang/async",
 } for "test"
 
-// `moonbit-community/sqlite3` vendors the SQLite amalgamation and binds it over
-// FFI, so it is a native package.
+// `moonbit-community/sqlite3` builds on `native` and `wasm` alike, but aya's
+// execution layer is `async` and `moonbitlang/async` is native-only, so this
+// driver is narrower than the binding under it.
 
-options(
-  backend: [ "native" ],
-)
+supported_targets = "native"

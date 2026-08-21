@@ -26,9 +26,9 @@ pub(all) suberror DbError {
 pub(open) trait Executor {
   /// Run a statement and return its rows, each already in projection order.
   ///
-  /// `columns` is how many values a row must come back with — the width of the
-  /// projection, not of the SELECT list, which a `Typed` driver writes twice as
-  /// wide. A driver whose binding reports the result width can ignore it.
+  /// `columns` is how many values a row must come back with. A driver whose
+  /// binding reports the result width can ignore it; one whose binding does
+  /// not — SQLite's — needs telling where the row ends.
   async fn query(Self, String, Array[SqlValue], columns~ : Int) -> Array[
     Array[SqlValue],
   ] raise DbError
@@ -36,17 +36,6 @@ pub(open) trait Executor {
   async fn execute(Self, String, Array[SqlValue]) -> Int raise DbError
   /// Which placeholder syntax this executor expects.
   fn dialect(Self) -> Dialect
-  /// Whether this executor needs each projected column's type written
-  /// alongside it. Defaults to `Plain`, which is what a binding that can
-  /// report a result column's type needs.
-  fn row_shape(Self) -> RowShape = _
-}
-
-///|
-/// Most bindings report the type of a result column, so most drivers want the
-/// SELECT list written once.
-impl Executor with fn row_shape(_self) {
-  Plain
 }
 
 ///|
@@ -137,13 +126,6 @@ pub impl[D : Driver] Executor for Tx[D] with fn execute(self, sql, params) {
 ///|
 pub impl[D : Driver] Executor for Tx[D] with fn dialect(self) {
   Executor::dialect(self.db)
-}
-
-///|
-/// Delegated rather than defaulted: a `Tx` over a driver that needs the SELECT
-/// list written twice as wide needs it too.
-pub impl[D : Driver] Executor for Tx[D] with fn row_shape(self) {
-  Executor::row_shape(self.db)
 }
 
 ///|
@@ -262,16 +244,12 @@ async fn[D : Driver] Tx::rollback_quietly(self : Tx[D]) -> Unit {
 /// Build the statement for this executor and run it.
 ///
 /// The text comes back alongside the rows because `one` names the statement in
-/// the error it raises. `columns` is the width of the projection rather than
-/// of the SELECT list, which a `Typed` executor writes twice as wide.
+/// the error it raises.
 async fn[E : Executor, C, A] Query::fetch(
   self : Query[C, A],
   db : E,
 ) -> (String, Array[Array[SqlValue]]) {
-  let (sql, params) = self.to_sql(
-    dialect=Executor::dialect(db),
-    shape=Executor::row_shape(db),
-  )
+  let (sql, params) = self.to_sql(dialect=Executor::dialect(db))
   let rows = Executor::query(db, sql, params, columns=self.projection.length())
   (sql, rows)
 }

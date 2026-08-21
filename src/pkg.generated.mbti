@@ -207,7 +207,7 @@ pub async fn[E : Executor, C, A] Query::one(Self[C, A], E) -> A
 pub fn[C, A] Query::order_by(Self[C, A], (C) -> Array[OrderKey]) -> Self[C, A]
 pub fn[C, A, S] Query::reduce(Self[C, A], (C) -> Reducer[S]) -> Self[C, S]
 pub async fn[E : Executor, C, A] Query::run(Self[C, A], E) -> Array[A]
-pub fn[C, A] Query::to_sql(Self[C, A], dialect? : Dialect, shape? : RowShape) -> (String, Array[SqlValue]) raise StatementError
+pub fn[C, A] Query::to_sql(Self[C, A], dialect? : Dialect) -> (String, Array[SqlValue]) raise StatementError
 
 pub enum RawExpr {
   Col(tbl~ : String, name~ : String)
@@ -221,11 +221,6 @@ pub enum RawExpr {
 type Reducer[Out]
 pub fn[A, B] Reducer::map(Self[A], (A) -> B raise DecodeError) -> Self[B]
 pub fn[A, B] Reducer::zip(Self[A], Self[B]) -> Self[(A, B)]
-
-pub(all) enum RowShape {
-  Plain
-  Typed
-} derive(Eq, @debug.Debug)
 
 pub struct Selection[Out] {
   exprs : Array[RawExpr]
@@ -293,7 +288,6 @@ pub(open) trait Executor {
   async fn query(Self, String, Array[SqlValue], columns~ : Int) -> Array[Array[SqlValue]] raise DbError
   async fn execute(Self, String, Array[SqlValue]) -> Int raise DbError
   fn dialect(Self) -> Dialect
-  fn row_shape(Self) -> RowShape = _
 }
 
 pub(open) trait SqlDecode {

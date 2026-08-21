@@ -23,25 +23,6 @@ pub(all) enum Dialect {
 } derive(Debug, Eq)
 
 ///|
-/// How a driver needs a SELECT list written.
-///
-/// `Plain` is one SQL column per projected column, and is what a binding that
-/// reports a result column's type gives you for nothing.
-///
-/// `Typed` writes `typeof(e), e` for each projected column instead, so the type
-/// and the nullness travel beside the value and the driver folds the pairs back
-/// into one `SqlValue` each. It exists because a binding may hand back only a
-/// value: ask such a binding for a column as an `Int` and a NULL arrives as
-/// `0`, indistinguishable from a real zero. Guessing there would be a silent
-/// wrong answer in the middle of an otherwise type-safe path, so the type is
-/// asked of the database instead. The spelling is SQLite's, because SQLite is
-/// the binding that needs it.
-pub(all) enum RowShape {
-  Plain
-  Typed
-} derive(Debug, Eq)
-
-///|
 /// A stored value did not fit the type the entity declared for it.
 pub(all) suberror DecodeError {
   MissingColumn(String)

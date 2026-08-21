@@ -17,10 +17,10 @@ struct ProbeCols {
 }
 
 ///|
-/// Doubling the SELECT list must not double the parameters. Each expression is
-/// rendered once and its text reused, so a literal in the projection is bound
-/// once and every later placeholder keeps its number.
-test "a typed projection binds each parameter once" {
+/// Parameters are collected in the order the clauses are written, and the
+/// SELECT list is the first of them. A projected literal must therefore take
+/// placeholder 1 and push the WHERE and LIMIT parameters along behind it.
+test "a projected literal is bound once, ahead of every later parameter" {
   // A literal in the projection is the case that would go wrong: it is the
   // only projected expression that carries a parameter of its own.
   let literal : Selection[String] = Selection::new(
@@ -30,11 +30,11 @@ test "a typed projection binds each parameter once" {
   let (sql, params) = (from(probes())
   |> Query::filter(p => p.id.gte(18))
   |> Query::map(_ => literal)
-  |> Query::limit(5)).to_sql(shape=Typed)
+  |> Query::limit(5)).to_sql()
   inspect(
     sql,
     content=(
-      #|SELECT typeof(?), ?
+      #|SELECT ?
       #|  FROM "probes" AS p
       #| WHERE p."id" >= ?
       #| LIMIT ?

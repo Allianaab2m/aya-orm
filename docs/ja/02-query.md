@@ -171,7 +171,6 @@ pub fn[A : SqlDecode, B : SqlDecode, C : SqlDecode] sel3(Column[A], Column[B], C
 pub fn[C, A] Query::to_sql(
   Query[C, A],
   dialect? : Dialect,   // Sqlite (既定) | Postgres
-  shape? : RowShape,    // Plain (既定) | Typed
 ) -> (String, Array[SqlValue]) raise StatementError
 ```
 
@@ -179,7 +178,7 @@ pub fn[C, A] Query::to_sql(
 パラメータに対応します。`$1` 形式の採番と `?` 形式の位置バインドを差し替え可能に
 しているのがこの不変条件です。
 
-`run` / `one` / `first` は、エグゼキュータが要求する方言と行の形を使って `to_sql` を
+`run` / `one` / `first` は、エグゼキュータが要求する方言を使って `to_sql` を
 呼んでくれます。直接呼ぶのは、文をログに出したいときや、データベースなしで
 テストしたいときです。
 
