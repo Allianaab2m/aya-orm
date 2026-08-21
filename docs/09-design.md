@@ -21,6 +21,7 @@ flowchart LR
     S9 --> S10["10. real drivers"]
     S10 --> S11["11. typed rows"]
     S11 --> S12["12. nested transactions"]
+    S12 --> S13["13. the binding caught up"]
 
     S0 -.- D0["Table held a decoder<br/>row.get(name)"]
     S1 -.- D1["Selection introduced<br/>projection + decoder as one"]
@@ -35,9 +36,10 @@ flowchart LR
     S10 -.- D10["Driver became async<br/>drivers moved to src/driver"]
     S11 -.- D11["RowShape::Typed<br/>typeof(e), e per column"]
     S12 -.- D12["Driver split into Executor + Driver<br/>Tx counts the nesting"]
+    S13 -.- D13["RowShape removed<br/>@sqlite3.Value carries the class"]
 
     classDef note fill:#f6f8fa,stroke:#d0d7de,color:#24292f
-    class D0,D1,D2,D3,D4,D5,D6,D7,D8,D9,D10,D11,D12 note
+    class D0,D1,D2,D3,D4,D5,D6,D7,D8,D9,D10,D11,D12,D13 note
 ```
 
 | Step | Change | Why |
@@ -53,8 +55,9 @@ flowchart LR
 | 8 | `split2` and `Query::map_cols` added | stand in for the lambda destructuring MoonBit lacks |
 | 9 | `Reducer[Out]` with `Query::reduce` / `group_by` | make an invalid aggregate query unwritable |
 | 10 | `Driver` and `run` / `one` / `first` / `transaction` became `async`, drivers moved to `src/driver` | the PostgreSQL client for MoonBit is async, and a synchronous trait cannot hold it |
-| 11 | `RowShape` on `Driver`, `columns~` on `query` | the SQLite binding reports neither a result column's type nor its nullness, and guessing would be a silent wrong answer |
+| 11 | `RowShape` on `Driver`, `columns~` on `query` | the SQLite binding of the day reported neither a result column's type nor its nullness, and guessing would be a silent wrong answer — see step 13 |
 | 12 | `Driver` split into `Executor` + `Driver : Executor`, `Tx[D]` added, `transaction` takes a `Tx` | two repositories that each bracket their own work must not send `BEGIN` twice, and a transaction body has no business committing |
+| 13 | `RowShape` removed, `Executor::row_shape` and `to_sql(shape~)` with it | `moonbit-community/sqlite3@0.2.0` added `Value`, which binds and reads SQLite's storage class directly, so step 11's workaround had nothing left to work around |
 
 ## Three recurring moves
 
@@ -91,7 +94,7 @@ exist so that the unfiltered case is visible at the call site by name.
 | a transaction body failing | ROLLBACK, then the same error is re-raised |
 | a nested transaction failing and the enclosing body carrying on | ROLLBACK, then `RollbackOnly` carrying the original cause |
 | a column read as a type it does not hold | raises `TypeMismatch` |
-| a NULL where a driver would otherwise report `0` | `RowShape::Typed` asks the database for the type |
+| a NULL where a driver would otherwise report `0` | the SQLite driver reads every column as a `@sqlite3.Value`, which names the storage class |
 
 ## Not built yet
 

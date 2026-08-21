@@ -12,7 +12,6 @@ pub(open) trait Executor {
   async fn query(Self, String, Array[SqlValue], columns~ : Int) -> Array[Array[SqlValue]] raise DbError
   async fn execute(Self, String, Array[SqlValue]) -> Int raise DbError
   fn dialect(Self) -> Dialect
-  fn row_shape(Self) -> RowShape = _   // 既定は Plain
 }
 
 pub(open) trait Driver : Executor {
@@ -33,9 +32,9 @@ aya がトランザクション本体に渡すものも `Executor` でしかあ�
 
 ドライバは接続そのものです。プーリングが要るならその外側の仕事です。
 
-`columns~` は**射影**の幅であって SELECT リストの幅ではありません。`Typed` な
-ドライバは SELECT リストを 2 倍の幅で書きます。結果の幅をバインディングが
-報告できるドライバはこの引数を無視して構いません。
+`columns~` は 1 行が返すべき値の個数です。結果の幅をバインディングが報告できる
+ドライバはこの引数を無視して構いません。報告できないドライバ — SQLite が
+そうです — には、行がどこで終わるかを伝える必要があります。
 
 ### なぜ `async` なのか
 
@@ -189,11 +188,11 @@ pub(all) suberror DbError {
 
 ## 同梱ドライバ
 
-| パッケージ | 依存ライブラリ | 行の形 |
-|---|---|---|
-| `@fake` (`src/driver/fake`) | なし — 文を記録し、用意した行を返す | `Plain` |
-| `@sqlite` (`src/driver/sqlite`) | [`moonbit-community/sqlite3`](https://github.com/moonbit-community/sqlite3.mbt) | `Typed` |
-| `@postgres` (`src/driver/postgres`) | [`moonbit-community/postgres`](https://github.com/moonbit-community/postgres.mbt) | `Plain` |
+| パッケージ | 依存ライブラリ |
+|---|---|
+| `@fake` (`src/driver/fake`) | なし — 文を記録し、用意した行を返す |
+| `@sqlite` (`src/driver/sqlite`) | [`moonbit-community/sqlite3`](https://github.com/moonbit-community/sqlite3.mbt) |
+| `@postgres` (`src/driver/postgres`) | [`moonbit-community/postgres`](https://github.com/moonbit-community/postgres.mbt) |
 
 ```moonbit
 @sqlite.with_connection(":memory:", db => {
@@ -223,43 +222,32 @@ pub(all) suberror DbError {
 ない PostgreSQL の型（日付・タイムスタンプ・uuid）は推測せず名前で拒否します。
 `submitted_at::text` のようにクエリ側でキャストしてください。
 
-### なぜ `RowShape` があるのか
+### SQLite ドライバはどう列を読むのか
+
+かつての `moonbit-community/sqlite3` は「聞かれた型で列を返す」だけで、列の型を
+報告する公開手段も `NULL` を伝える手段もありませんでした。ある列を `Int` として
+聞くと NULL は `0` として返ってきます — 実在する値で、しかも誤った値です。
+aya はこれを、SELECT リストを `typeof(e), e` の対で書き、ドライバ側で畳み戻す
+という回避策で塞いでいました。ドライバが宣言する `RowShape` がその指示でした。
+
+`0.2.0` はこの 2 つの穴を型 1 つで塞ぎました。
 
 ```moonbit
-pub(all) enum RowShape { Plain; Typed }
+pub(all) enum Value { Null; Integer(Int64); Real(Double); Text(String); Blob(Bytes) }
 ```
 
-SQLite のバインディングは意図的に薄く、「聞かれた型で列を返す」だけで、列の型を
-報告する公開手段も `NULL` を伝える手段もありません。ある列を `Int` として聞くと
-NULL は `0` として返ってきます — 実在する値で、しかも誤った値です。型安全な経路の
-只中でこれは黙った誤答なので、当て推量ではなくデータベースに型を聞きます。
+`Bind` と `Column` の両方を実装するので、ストレージクラスが両方向をそのまま
+渡っていき、ドライバは行き帰りともただの変換になります。2 倍幅の SELECT リストも、
+それを要求するための `RowShape` も、どちらも不要になりました。`query` に
+`columns~` を渡すのは続いています。結果行の幅をバインディングが報告しないからです。
 
-ドライバは必要な SELECT リストの形を宣言し、aya がそのとおりに書きます。
-
-```sql
--- RowShape::Plain。結果行を記述できるドライバが必要とする形
-SELECT i."id", t."tag" FROM "items" AS i LEFT JOIN "tags" AS t ON ...
-
--- RowShape::Typed。SQLite ドライバが宣言する形
-SELECT typeof(i."id"), i."id", typeof(t."tag"), t."tag" FROM ...
-```
-
-ドライバが各ペアを 1 つの `SqlValue` に畳み戻すので、その上の層が 2 倍のリストを
-見ることはありません。`query` に `columns~` を渡しているのもこのためです。射影の
-各式は**一度だけ**レンダリングしてそのテキストを使い回します。2 回レンダリングすると
-式中のリテラルが 2 回バインドされ、以降のプレースホルダ番号がすべてずれるからです。
-
-SQLite が返すタグは列の宣言型ではなく値のストレージクラスです。したがって
+列が報告するクラスは列の宣言型ではなく値のストレージクラスです。したがって
 `INTEGER` と宣言された列がテキストを保持していればテキストとして読めます。
 実際に保存されているものがそれだからです。
 
-逆方向では、`VNull` のパラメータは単にバインドしません。SQLite はバインドされていない
-パラメータを NULL として読むので、このバインディングを通して NULL を送る唯一の
-方法がそれです。
-
-どちらの穴もバインディング側の小さな変更 1 つで塞がります — `internal/ffi` には
-すでに `sqlite3_column_type` と `sqlite3_bind_null` があり、公開されていないだけ
-です — ので、上流で不要になるかもしれません。
+逆方向では、`VNull` のパラメータは `Value::Null` としてバインドされます。以前は
+単にバインドせず、「バインドされていないパラメータを SQLite は NULL として読む」
+という性質に頼っていました。旧バインディングで NULL を送る唯一の方法がそれでした。
 
 ### データベースなしでテストする
 

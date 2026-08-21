@@ -168,12 +168,11 @@ pub fn[C, A] Query::limit(self : Query[C, A], n : Int) -> Query[C, A] {
 pub fn[C, A] Query::to_sql(
   self : Query[C, A],
   dialect? : Dialect = Dialect::Sqlite,
-  shape? : RowShape = RowShape::Plain,
 ) -> (String, Array[SqlValue]) raise StatementError {
   self.check_aliases()
   let em = Emitter::new(dialect)
   let buf = StringBuilder::new()
-  buf.write_string("SELECT " + self.select_list(em, shape))
+  buf.write_string("SELECT " + self.select_list(em))
   buf.write_string("\n  FROM \"\{self.source}\" AS \{self.source_tbl}")
   for j in self.joins {
     buf.write_string(
@@ -208,22 +207,11 @@ fn[C, A] Query::check_aliases(self : Query[C, A]) -> Unit raise StatementError {
 }
 
 ///|
-/// Write the SELECT list in the shape the executor asked for.
-fn[C, A] Query::select_list(
-  self : Query[C, A],
-  em : Emitter,
-  shape : RowShape,
-) -> String {
-  self.projection
-  .map(p => {
-    // Rendered once and used twice on purpose: `Emitter::expr` appends any
-    // literal it meets to the parameter list, so rendering a second time would
-    // bind the same value twice and shift every later placeholder.
-    let e = em.expr(p)
-    match shape {
-      Plain => e
-      Typed => "typeof(\{e}), \{e}"
-    }
-  })
-  .join(", ")
+/// Write the SELECT list: one SQL column per projected column, in order.
+///
+/// Each projected expression is rendered exactly once. `Emitter::expr` appends
+/// any literal it meets to the parameter list, so a second rendering would bind
+/// the same value twice and shift every later placeholder.
+fn[C, A] Query::select_list(self : Query[C, A], em : Emitter) -> String {
+  self.projection.map(p => em.expr(p)).join(", ")
 }

@@ -54,7 +54,8 @@ fn items() -> @aya.Table[ItemCols, Item] {
 fn ddl(db : Sqlite, sql : String) -> Unit raise {
   let stmt = db.connection().prepare(sql)
   defer drop(stmt)
-  stmt.step_once()
+  // DDL produces no rows, so the first step is also the last one.
+  stmt.step() |> ignore
 }
 
 ///|
@@ -81,8 +82,8 @@ fn schema(db : Sqlite) -> Unit raise {
 }
 
 ///|
-/// The whole point of the typed projection: every storage class survives, and
-/// so does the difference between a missing value and a zero one.
+/// Every storage class survives the round trip, and so does the difference
+/// between a missing value and a zero one.
 async test "each storage class survives a round trip" {
   with_connection(":memory:", db => {
     schema(db)
@@ -113,9 +114,9 @@ async test "each storage class survives a round trip" {
 }
 
 ///|
-/// A NULL read as an `Int` through this binding would arrive as `0`, which is a
-/// real value and a wrong answer. `typeof` is what keeps the two apart, and a
-/// LEFT JOIN with no match is the ordinary way to meet the case.
+/// A NULL read as an `Int64` would arrive as `0`, which is a real value and a
+/// wrong answer. Reading the column as a `@sqlite3.Value` is what keeps the two
+/// apart, and a LEFT JOIN with no match is the ordinary way to meet the case.
 async test "a missing outer-joined row decodes as None, not as zero" {
   with_connection(":memory:", db => {
     schema(db)
@@ -180,10 +181,8 @@ fn tags() -> @aya.Table[TagCols, Tag] {
 }
 
 ///|
-/// Doubling the SELECT list must not double the parameter list with it: each
-/// projected expression is rendered once and its text reused, so a literal in
-/// the projection is still bound once and every later placeholder keeps its
-/// number.
+/// Placeholders are numbered across the whole statement, so a query that both
+/// filters and limits has to bind them in the order they were written.
 async test "a filtered and limited query binds each parameter once" {
   with_connection(":memory:", db => {
     schema(db)
@@ -334,18 +333,26 @@ async test "a nested failure undoes the enclosing transaction, against SQLite" {
 }
 
 ///|
-/// A statement the database rejects comes back as aya's own failure, with
-/// SQLite's message rather than only a result code.
+/// A statement the database rejects comes back as aya's own failure, carrying
+/// what SQLite said about it.
+///
+/// The binding captures `sqlite3_errmsg` where the call failed, so the message
+/// is always there — there is no window in which asking the connection after
+/// the fact comes back empty.
 async test "a broken statement fails as a DbError" {
   with_connection(":memory:", db => {
     try {
       let _ = @aya.from(items()).run(db)
       fail("expected the missing table to be reported")
     } catch {
-      e =>
-        assert_true(
-          "\{e}".contains("no such table") || "\{e}".contains("QueryFailed"),
-        )
+      // Matched apart rather than stringified: `"\{e}"` renders only the
+      // constructor's path, so the message has to be read off the payload.
+      @aya.QueryFailed(sql~, message~) => {
+        assert_true(sql.contains("FROM \"items\""))
+        assert_true(message.contains("no such table: items"))
+        assert_true(message.contains("code=Error"))
+      }
+      e => raise e
     }
   })
 }

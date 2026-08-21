@@ -13,7 +13,6 @@ pub(open) trait Executor {
   async fn query(Self, String, Array[SqlValue], columns~ : Int) -> Array[Array[SqlValue]] raise DbError
   async fn execute(Self, String, Array[SqlValue]) -> Int raise DbError
   fn dialect(Self) -> Dialect
-  fn row_shape(Self) -> RowShape = _   // defaults to Plain
 }
 
 pub(open) trait Driver : Executor {
@@ -34,9 +33,9 @@ the transaction it is running inside. Only `Tx` sends those three statements.
 
 A driver *is* the connection. Pooling, if you want it, belongs outside.
 
-`columns~` is the width of the **projection**, not of the SELECT list, which a
-`Typed` driver writes twice as wide. A driver whose binding reports the result
-width can ignore it.
+`columns~` is how many values a row must come back with. A driver whose
+binding reports the result width can ignore it; one whose binding does not —
+SQLite's — needs telling where the row ends.
 
 ### Why `async`
 
@@ -196,11 +195,11 @@ not fitting the type the entity declared for it.
 
 ## Drivers
 
-| Package | Backing library | Row shape |
-|---|---|---|
-| `@fake` (`src/driver/fake`) | none — records statements, replays canned rows | `Plain` |
-| `@sqlite` (`src/driver/sqlite`) | [`moonbit-community/sqlite3`](https://github.com/moonbit-community/sqlite3.mbt) | `Typed` |
-| `@postgres` (`src/driver/postgres`) | [`moonbit-community/postgres`](https://github.com/moonbit-community/postgres.mbt) | `Plain` |
+| Package | Backing library |
+|---|---|
+| `@fake` (`src/driver/fake`) | none — records statements, replays canned rows |
+| `@sqlite` (`src/driver/sqlite`) | [`moonbit-community/sqlite3`](https://github.com/moonbit-community/sqlite3.mbt) |
+| `@postgres` (`src/driver/postgres`) | [`moonbit-community/postgres`](https://github.com/moonbit-community/postgres.mbt) |
 
 ```moonbit
 @sqlite.with_connection(":memory:", db => {
@@ -231,44 +230,32 @@ guess would be a silent wrong answer. PostgreSQL types aya has no shape for
 (dates, timestamps, uuid) are refused by name rather than guessed at; cast them
 in the query, as in `submitted_at::text`.
 
-### Why `RowShape`
+### How the SQLite driver reads a column
+
+`moonbit-community/sqlite3` used to hand back whatever you asked a column for
+and had no public way to report a column's type or to say `NULL`. Ask it for a
+column as an `Int` and a NULL arrived as `0` — a real value, and the wrong one.
+aya worked around that by writing the SELECT list as `typeof(e), e` pairs and
+folding them back in the driver, under a `RowShape` the driver declared.
+
+`0.2.0` closed both gaps with one type:
 
 ```moonbit
-pub(all) enum RowShape { Plain; Typed }
+pub(all) enum Value { Null; Integer(Int64); Real(Double); Text(String); Blob(Bytes) }
 ```
 
-The SQLite binding is deliberately thin: it hands back whatever you ask a
-column for, and has no public way to report a column's type or to say `NULL`.
-Ask it for a column as an `Int` and a NULL arrives as `0` — a real value, and
-the wrong one. That is a silent wrong answer in the middle of an otherwise
-type-safe path, so the type is asked of the database rather than guessed.
+It implements both `Bind` and `Column`, so the storage class travels in both
+directions and the driver is a plain translation each way. The doubled SELECT
+list and the `RowShape` that asked for it are gone; `query` is still told
+`columns~`, because the binding does not report how wide a result row is.
 
-A driver declares which shape of SELECT list it needs, and aya writes it:
+The class a column reports is the value's, not the column's declared type, so a
+column declared `INTEGER` holding text reads back as text — which is what is
+actually stored.
 
-```sql
--- RowShape::Plain, what a driver that can describe a result row needs
-SELECT i."id", t."tag" FROM "items" AS i LEFT JOIN "tags" AS t ON ...
-
--- RowShape::Typed, what the SQLite driver declares
-SELECT typeof(i."id"), i."id", typeof(t."tag"), t."tag" FROM ...
-```
-
-The driver folds each pair back into one `SqlValue`, so nothing above it sees
-the doubled list — which is also why `query` is told `columns~`. Each projected
-expression is rendered **once** and its text reused, since rendering it twice
-would bind any literal in it twice and shift every later placeholder.
-
-The tag SQLite returns is the value's storage class, not the column's declared
-type, so a column declared `INTEGER` holding text reads back as text — which is
-what is actually stored.
-
-Going the other way, a `VNull` parameter is simply not bound. SQLite reads an
-unbound parameter as NULL, and that is the only way to send one through this
-binding.
-
-Both gaps are one small change away in the binding itself — `internal/ffi`
-already has `sqlite3_column_type` and `sqlite3_bind_null`, they are just not
-public — so this may become unnecessary upstream.
+Going the other way, a `VNull` parameter is bound as `Value::Null`. It used to
+be left unbound, relying on SQLite reading an unbound parameter as NULL, which
+was the only way to send one through the old binding.
 
 ### Testing without a database
 
