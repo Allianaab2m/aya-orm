@@ -30,7 +30,7 @@ aya-kit codegen     .g.mbt を再生成する
 aya-kit init        aya.json と migrations/ を用意する
 ```
 
-このリポジトリでは `moon run src/kit/cmd -- <サブコマンド>` で動きます。
+このリポジトリでは `moon run src/kit/aya-kit -- <サブコマンド>` で動きます。
 
 ## 出力されるもの
 
@@ -52,11 +52,11 @@ migrations/
 変更履歴として読めます。`--name` で上書きできます。
 
 ```
-$ moon run src/kit/cmd -- status
+$ moon run src/kit/aya-kit -- status
   add column users.nickname
 run `aya-kit generate` to write the migration
 
-$ moon run src/kit/cmd -- generate
+$ moon run src/kit/aya-kit -- generate
   add column users.nickname
 aya-kit: wrote migrations/0001_add_column_users_nickname.sql
 ```
