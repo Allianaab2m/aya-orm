@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/Allianaab2m/aya-orm/compare/aya-v0.2.0...aya-v0.2.1) (2026-08-24)
+
+
+### Miscellaneous Chores
+
+* release 0.2.1 ([b40aaee](https://github.com/Allianaab2m/aya-orm/commit/b40aaee7707497d8080668cc7d6c54badd6fcbfe))
+
 ## [0.2.0](https://github.com/Allianaab2m/aya-orm/compare/aya-v0.1.0...aya-v0.2.0) (2026-08-21)
 
 
