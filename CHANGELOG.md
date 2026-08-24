@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.3.0](https://github.com/Allianaab2m/aya-orm/compare/aya-v0.2.1...aya-v0.3.0) (2026-08-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* the CLI package path is now `Allianaab2m/aya/kit/aya-kit`. Consumers run it as `moon run .mooncakes/Allianaab2m/aya/src/kit/aya-kit`, or install it with `moon install Allianaab2m/aya/kit/aya-kit`.
+
+### Code Refactoring
+
+* rename the CLI package to src/kit/aya-kit ([d6314d2](https://github.com/Allianaab2m/aya-orm/commit/d6314d2dea7407fe5b3186d2de5374ba33bf9a1a))
+
 ## [0.2.1](https://github.com/Allianaab2m/aya-orm/compare/aya-v0.2.0...aya-v0.2.1) (2026-08-24)
 
 
