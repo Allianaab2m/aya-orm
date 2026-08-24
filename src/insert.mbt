@@ -49,7 +49,7 @@ pub fn Insert::to_sql(
 ) -> (String, Array[SqlValue]) raise StatementError {
   guard self.rows.length() > 0 else { raise EmptyInsert(table=self.table_name) }
   let em = Emitter::new(dialect)
-  let buf = StringBuilder::new()
+  let buf = StringBuilder()
   let cols = self.columns.map(c => "\"\{c}\"").join(", ")
   buf.write_string("INSERT INTO \"\{self.table_name}\" (\{cols})")
   let tuples = []

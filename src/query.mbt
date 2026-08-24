@@ -171,7 +171,7 @@ pub fn[C, A] Query::to_sql(
 ) -> (String, Array[SqlValue]) raise StatementError {
   self.check_aliases()
   let em = Emitter::new(dialect)
-  let buf = StringBuilder::new()
+  let buf = StringBuilder()
   buf.write_string("SELECT " + self.select_list(em))
   buf.write_string("\n  FROM \"\{self.source}\" AS \{self.source_tbl}")
   for j in self.joins {

@@ -65,7 +65,7 @@ pub fn[C] Update::to_sql(
 ) -> (String, Array[SqlValue]) raise StatementError {
   guard self.sets.length() > 0 else { raise EmptyUpdate(table=self.table_name) }
   let em = Emitter::new(dialect)
-  let buf = StringBuilder::new()
+  let buf = StringBuilder()
   buf.write_string("UPDATE \"\{self.table_name}\" AS \{self.tbl}")
   // SET comes before WHERE in the statement, so its parameters must be
   // emitted first to keep the parameter list in textual order.

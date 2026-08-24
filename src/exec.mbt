@@ -159,22 +159,24 @@ pub async fn[D : Driver, A] transaction(
 ///
 /// No statement goes out either side of it. The depth is still counted, so a
 /// scope nested three deep knows it is not the one that has to commit.
+// The depth bookkeeping belongs in `defer`, which runs on both ways out. What
+// is left in `catch` is not cleanup: it reads the failure that poisons the
+// transaction, and `errdefer` cannot see the error. `fragile_catch_all`
+// matches on the shape either way, so it is silenced for this function alone.
+#warnings("-fragile_catch_all")
 async fn[D, A] Tx::join(self : Tx[D], body : async (Tx[D]) -> A) -> A {
   self.depth += 1
-  try body(self) catch {
+  defer {
+    self.depth -= 1
+  }
+  body(self) catch {
     e => {
-      self.depth -= 1
       // Keep the first failure: it is the one that made the transaction
       // uncommittable, whatever happened after it.
       if self.failure is None {
         self.failure = Some(e)
       }
       raise e
-    }
-  } noraise {
-    result => {
-      self.depth -= 1
-      result
     }
   }
 }
@@ -188,35 +190,28 @@ async fn[D : Driver, A] Tx::outermost(
   Driver::begin(self.db)
   self.depth = 1
   self.failure = None
-  try body(self) catch {
-    e => {
+  let result = {
+    errdefer {
       self.finish() |> ignore
       self.rollback_quietly()
-      raise e
     }
-  } noraise {
-    // Deciding here rather than in the `catch` arm is what keeps the two
-    // outcomes apart: a `raise` from this arm is not caught by the arm above,
-    // so nothing can roll back twice.
-    result =>
-      match self.finish() {
-        // The body swallowed a nested scope's failure and returned anyway.
-        // Committing now would write whichever half of the work survived.
-        Some(cause) => {
-          self.rollback_quietly()
-          raise RollbackOnly(cause~)
-        }
-        None =>
-          try {
-            Driver::commit(self.db)
-            result
-          } catch {
-            e => {
-              self.rollback_quietly()
-              raise e
-            }
-          }
-      }
+    body(self)
+  }
+  // Deciding out here rather than inside the block above is what keeps the two
+  // outcomes apart: the `errdefer` covers the body and nothing else, so a
+  // `raise` from below it cannot roll back twice.
+  match self.finish() {
+    // The body swallowed a nested scope's failure and returned anyway.
+    // Committing now would write whichever half of the work survived.
+    Some(cause) => {
+      self.rollback_quietly()
+      raise RollbackOnly(cause~)
+    }
+    None => {
+      errdefer self.rollback_quietly()
+      Driver::commit(self.db)
+      result
+    }
   }
 }
 

@@ -52,7 +52,7 @@ pub fn Journal::next_index(self : Journal) -> Int {
 
 ///|
 pub fn Journal::to_json_string(self : Journal) -> String {
-  let buf = StringBuilder::new()
+  let buf = StringBuilder()
   buf.write_string("{\n")
   buf.write_string("  \"version\": \{quote(self.version)},\n")
   buf.write_string(

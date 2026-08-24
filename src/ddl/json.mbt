@@ -55,7 +55,7 @@ fn J::write(self : J, buf : StringBuilder, indent : Int) -> Unit {
 ///|
 /// Render a string as a JSON string literal.
 fn quote(s : String) -> String {
-  let buf = StringBuilder::new()
+  let buf = StringBuilder()
   buf.write_string("\"")
   for c in s {
     match c {
@@ -82,7 +82,7 @@ fn pad4(n : Int) -> String {
   let digits : Array[Char] = [
     '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f',
   ]
-  let buf = StringBuilder::new()
+  let buf = StringBuilder()
   for shift in [12, 8, 4, 0] {
     let nibble = (n >> shift) & 0xf
     buf.write_char(digits[nibble])
@@ -101,7 +101,7 @@ fn opt_str(v : String?) -> J {
 ///|
 /// Render a snapshot as the JSON that gets written to `meta/NNNN_snapshot.json`.
 pub fn Snapshot::to_json_string(self : Snapshot) -> String {
-  let buf = StringBuilder::new()
+  let buf = StringBuilder()
   J::Obj([
     ("version", Str(self.version)),
     ("dialect", Str(dialect_name(self.dialect))),
