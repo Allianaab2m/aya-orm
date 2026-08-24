@@ -195,7 +195,7 @@ src/*.mbt           コアライブラリ — 式・射影・クエリ・DML・S
 src/gen/            エンティティ解析 — 属性から IR — とカラムハンドル生成
 src/ddl/            IR からスナップショット・差分・DDL へ
 src/kit/            設定とマイグレーション計画（すべて純粋）
-src/kit/cmd/        CLI (aya-kit)
+src/kit/aya-kit/    CLI (aya-kit)
 src/driver/sqlite/  SQLite ドライバ
 src/driver/postgres/PostgreSQL ドライバ
 src/driver/fake/    記録用フェイク。Repository のテスト向け

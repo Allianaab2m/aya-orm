@@ -198,7 +198,7 @@ src/*.mbt           core library — expressions, projection, query, DML, emissi
 src/gen/            entity parsing — attributes to IR — and column-handle emission
 src/ddl/            IR to snapshot, diff, and DDL
 src/kit/            config and migration planning, all of it pure
-src/kit/cmd/        the CLI (aya-kit)
+src/kit/aya-kit/    the CLI (aya-kit)
 src/driver/sqlite/  SQLite driver
 src/driver/postgres/PostgreSQL driver
 src/driver/fake/    recording fake, for testing repositories

@@ -30,7 +30,7 @@ aya-kit codegen     regenerate the .g.mbt companions
 aya-kit init        write aya.json and migrations/
 ```
 
-Inside this repository they run as `moon run src/kit/cmd -- <subcommand>`.
+Inside this repository they run as `moon run src/kit/aya-kit -- <subcommand>`.
 
 ## What it writes
 
@@ -52,11 +52,11 @@ File names come from the change itself, so the directory reads as a schema
 changelog. `--name` overrides them.
 
 ```
-$ moon run src/kit/cmd -- status
+$ moon run src/kit/aya-kit -- status
   add column users.nickname
 run `aya-kit generate` to write the migration
 
-$ moon run src/kit/cmd -- generate
+$ moon run src/kit/aya-kit -- generate
   add column users.nickname
 aya-kit: wrote migrations/0001_add_column_users_nickname.sql
 ```
