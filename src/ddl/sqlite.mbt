@@ -207,7 +207,7 @@ fn rebuild_table_sql(old : TableDef, new_table : TableDef) -> Array[String] {
 /// `name` is separate from `table.name` so a rebuild can create the same shape
 /// under a temporary name.
 fn create_table_sql(table : TableDef, name~ : String) -> String {
-  let buf = StringBuilder::new()
+  let buf = StringBuilder()
   buf.write_string("CREATE TABLE \{ident(name)} (\n")
   for i, c in table.columns {
     buf.write_string("  ")
@@ -221,7 +221,7 @@ fn create_table_sql(table : TableDef, name~ : String) -> String {
 ///|
 /// One column's definition, as it appears inside `CREATE TABLE`.
 fn column_sql(c : ColumnDef) -> String {
-  let buf = StringBuilder::new()
+  let buf = StringBuilder()
   buf.write_string("\{ident(c.name)} \{c.ty}")
   if c.primary_key {
     buf.write_string(" PRIMARY KEY")

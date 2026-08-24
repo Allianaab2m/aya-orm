@@ -78,7 +78,7 @@ fn FakeDb::check(self : FakeDb, sql : String) -> Unit raise @aya.DbError {
 /// Collapse a statement onto one line so the log stays readable.
 fn one_line(sql : String) -> String {
   let parts = sql.split("\n").map(s => s.trim().to_owned()).to_array()
-  let buf = StringBuilder::new()
+  let buf = StringBuilder()
   for i, p in parts {
     if i > 0 {
       buf.write_string(" ")

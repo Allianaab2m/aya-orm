@@ -41,7 +41,7 @@ pub fn[C] Delete::to_sql(
   dialect? : Dialect = Dialect::Sqlite,
 ) -> (String, Array[SqlValue]) {
   let em = Emitter::new(dialect)
-  let buf = StringBuilder::new()
+  let buf = StringBuilder()
   buf.write_string("DELETE FROM \"\{self.table_name}\" AS \{self.tbl}")
   buf.write_string(em.where_clause(self.wheres, indent="  "))
   (buf.to_string(), em.params)

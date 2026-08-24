@@ -90,7 +90,7 @@ fn parse_args(
       raise Malformed(raw~, reason="value of `\{key}` must be a quoted string")
     }
     i = i + 1
-    let value = StringBuilder::new()
+    let value = StringBuilder()
     let mut closed = false
     while i < n {
       let c = cs[i]
@@ -127,7 +127,7 @@ fn parse_args(
 ///|
 /// The characters in `[start, end)` as a string.
 fn take(cs : Array[Char], start : Int, end : Int) -> String {
-  let buf = StringBuilder::new()
+  let buf = StringBuilder()
   for i in start..<end {
     buf.write_char(cs[i])
   }

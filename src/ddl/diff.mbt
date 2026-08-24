@@ -106,7 +106,7 @@ pub fn auto_name(changes : Array[Change]) -> String {
 ///|
 /// Lower-case, underscore-separated, safe in a file name.
 fn slug(s : String) -> String {
-  let buf = StringBuilder::new()
+  let buf = StringBuilder()
   let mut written = false
   let mut pending_sep = false
   for c in s {

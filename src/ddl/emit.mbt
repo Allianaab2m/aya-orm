@@ -30,7 +30,7 @@ pub fn statements(
 /// Both dialects aya targets accept the SQL standard's double quotes, which
 /// is also what `sql/emit.mbt` writes for column references.
 pub fn ident(name : String) -> String {
-  let buf = StringBuilder::new()
+  let buf = StringBuilder()
   buf.write_string("\"")
   for c in name {
     if c == '"' {
@@ -54,7 +54,7 @@ pub const BREAKPOINT = "--> statement-breakpoint"
 ///|
 /// Render statements as the body of a `.sql` migration file.
 pub fn migration_sql(statements : Array[String]) -> String {
-  let buf = StringBuilder::new()
+  let buf = StringBuilder()
   for i, s in statements {
     if i > 0 {
       buf.write_string("\{BREAKPOINT}\n")
@@ -72,7 +72,7 @@ pub fn migration_sql(statements : Array[String]) -> String {
 /// split, and so the round trip can be tested.
 pub fn split_migration(text : String) -> Array[String] {
   let out = []
-  let current = StringBuilder::new()
+  let current = StringBuilder()
   let mut empty = true
   for line in text.split("\n") {
     if line.trim() == BREAKPOINT {

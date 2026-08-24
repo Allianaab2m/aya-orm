@@ -91,7 +91,7 @@ pub fn Config::to_json_string(self : Config) -> String {
 ///|
 /// Minimal JSON string quoting, for the two files this package writes.
 fn quote(s : String) -> String {
-  let buf = StringBuilder::new()
+  let buf = StringBuilder()
   buf.write_string("\"")
   for c in s {
     match c {
